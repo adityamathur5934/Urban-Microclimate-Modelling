@@ -1,0 +1,65 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2312 / 10 / 11                       |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    location    "0";
+    object      k;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 2 -2 0 0 0 0];
+
+// Turbulent kinetic energy derived from Richards & Hoxey (1993): k = u*^2 / sqrt(Cmu) ~ 0.498 m2/s2
+internalField   uniform 0.498;
+
+boundaryField
+{
+    inlet
+    {
+        type            atmBoundaryLayerInletK;
+        Uref            5.0;
+        Zref            10.0;
+        z0              uniform 0.05;
+        d               uniform 0.0;
+        value           uniform 0.498;
+    }
+
+    outlet
+    {
+        type            inletOutlet;
+        inletValue      uniform 0.498;
+        value           uniform 0.498;
+    }
+
+    ground
+    {
+        type            kqRWallFunction;
+        value           uniform 0.498;
+    }
+
+    building
+    {
+        type            kqRWallFunction;
+        value           uniform 0.498;
+    }
+
+    top
+    {
+        type            slip;
+    }
+
+    frontAndBack
+    {
+        type            empty;
+    }
+}
+
+// ************************************************************************* //

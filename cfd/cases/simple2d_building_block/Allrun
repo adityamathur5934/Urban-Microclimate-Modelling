@@ -1,0 +1,29 @@
+#!/bin/bash
+# -----------------------------------------------------------------------------
+# Allrun script for simple2d_building_block OpenFOAM case
+# -----------------------------------------------------------------------------
+set -e
+
+echo "=== OpenFOAM Execution: simple2d_building_block ==="
+
+# 1. Check for OpenFOAM environment
+if ! command -v blockMesh &> /dev/null || ! command -v simpleFoam &> /dev/null; then
+    echo "ERROR: OpenFOAM environment is not sourced or installed."
+    echo "Please source your OpenFOAM etc/bashrc or activate your OpenFOAM Docker container."
+    echo "Example: source /usr/lib/openfoam/openfoam2312/etc/bashrc"
+    exit 1
+fi
+
+echo "[1/4] Generating computational mesh with blockMesh..."
+blockMesh > log.blockMesh 2>&1
+
+echo "[2/4] Verifying mesh quality with checkMesh..."
+checkMesh > log.checkMesh 2>&1
+
+echo "[3/4] Running steady-state RANS solver simpleFoam..."
+simpleFoam > log.simpleFoam 2>&1
+
+echo "[4/4] Sampling pedestrian slice and wake profiles..."
+postProcess -func sample > log.sample 2>&1
+
+echo "Simulation completed successfully. Output logs saved in log.*"

@@ -1,0 +1,69 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2312 / 10 / 11                       |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      sampleDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+type            sets;
+libs            ("libsampling.so");
+
+interpolationScheme cellPoint;
+
+setFormat       raw; // Output ASCII columns: x y z field_values
+
+fields          (U p k omega);
+
+sets
+(
+    // Pedestrian-level horizontal line sample at z = 1.75m upstream
+    pedestrian_upstream
+    {
+        type            uniform;
+        axis            x;
+        start           (0.0 0.0 1.75);
+        end             (99.0 0.0 1.75);
+        nPoints         100;
+    }
+
+    // Pedestrian-level horizontal line sample in the wake (z = 1.75m)
+    pedestrian_wake
+    {
+        type            uniform;
+        axis            x;
+        start           (121.0 0.0 1.75);
+        end             (420.0 0.0 1.75);
+        nPoints         300;
+    }
+
+    // Vertical profile at inlet (x = 0)
+    inlet_profile
+    {
+        type            uniform;
+        axis            z;
+        start           (0.0 0.0 0.0);
+        end             (0.0 0.0 120.0);
+        nPoints         120;
+    }
+
+    // Vertical profile in the near wake (x = 140m, 1H downstream)
+    near_wake_profile
+    {
+        type            uniform;
+        axis            z;
+        start           (140.0 0.0 0.0);
+        end             (140.0 0.0 120.0);
+        nPoints         120;
+    }
+);
+
+// ************************************************************************* //

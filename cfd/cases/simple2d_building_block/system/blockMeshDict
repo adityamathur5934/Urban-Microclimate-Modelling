@@ -1,0 +1,160 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2312 / 10 / 11                       |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+scale   1;
+
+// Domain: Lx = 420m (upstream 100m, building 20m, wake 300m)
+//         Lz = 120m (building height H = 20m, domain height = 6H)
+//         Ly = 1m   (quasi-2D, 1 cell thick)
+
+vertices
+(
+    // Plane y = -0.5
+    (  0.0 -0.5   0.0) // 0: inlet bottom
+    (100.0 -0.5   0.0) // 1: building front ground
+    (120.0 -0.5   0.0) // 2: building back ground
+    (420.0 -0.5   0.0) // 3: outlet bottom
+
+    (  0.0 -0.5  20.0) // 4: inlet roof height
+    (100.0 -0.5  20.0) // 5: building windward top
+    (120.0 -0.5  20.0) // 6: building leeward top
+    (420.0 -0.5  20.0) // 7: outlet roof height
+
+    (  0.0 -0.5 120.0) // 8: inlet top
+    (100.0 -0.5 120.0) // 9: above building windward top
+    (120.0 -0.5 120.0) // 10: above building leeward top
+    (420.0 -0.5 120.0) // 11: outlet top
+
+    // Plane y = +0.5
+    (  0.0  0.5   0.0) // 12
+    (100.0  0.5   0.0) // 13
+    (120.0  0.5   0.0) // 14
+    (420.0  0.5   0.0) // 15
+
+    (  0.0  0.5  20.0) // 16
+    (100.0  0.5  20.0) // 17
+    (120.0  0.5  20.0) // 18
+    (420.0  0.5  20.0) // 19
+
+    (  0.0  0.5 120.0) // 20
+    (100.0  0.5 120.0) // 21
+    (120.0  0.5 120.0) // 22
+    (420.0  0.5 120.0) // 23
+);
+
+blocks
+(
+    // Block 0: Upstream ground to roof height
+    hex (0 1 13 12 4 5 17 16) (50 1 20) simpleGrading (1 1 1)
+
+    // Block 1: Upstream roof height to top boundary
+    hex (4 5 17 16 8 9 21 20) (50 1 30) simpleGrading (1 1 1)
+
+    // Block 2: Directly above building roof
+    hex (5 6 18 17 9 10 22 21) (20 1 30) simpleGrading (1 1 1)
+
+    // Block 3: Downstream wake cavity (ground to roof height)
+    hex (2 3 15 14 6 7 19 18) (100 1 20) simpleGrading (1 1 1)
+
+    // Block 4: Downstream above wake cavity to top boundary
+    hex (6 7 19 18 10 11 23 22) (100 1 30) simpleGrading (1 1 1)
+);
+
+edges
+(
+);
+
+boundary
+(
+    inlet
+    {
+        type patch;
+        faces
+        (
+            (0 12 16 4)
+            (4 16 20 8)
+        );
+    }
+
+    outlet
+    {
+        type patch;
+        faces
+        (
+            (3 7 19 15)
+            (7 11 23 19)
+        );
+    }
+
+    ground
+    {
+        type wall;
+        faces
+        (
+            (0 1 13 12)
+            (2 3 15 14)
+        );
+    }
+
+    building
+    {
+        type wall;
+        faces
+        (
+            (1 5 17 13) // Windward wall
+            (5 6 18 17) // Roof
+            (2 14 18 6) // Leeward wall
+        );
+    }
+
+    top
+    {
+        type patch;
+        faces
+        (
+            (8 9 21 20)
+            (9 10 22 21)
+            (10 11 23 22)
+        );
+    }
+
+    frontAndBack
+    {
+        type empty;
+        faces
+        (
+            // Back faces (y = -0.5)
+            (0 4 5 1)
+            (4 8 9 5)
+            (5 9 10 6)
+            (2 6 7 3)
+            (6 10 11 7)
+
+            // Front faces (y = +0.5)
+            (12 13 17 16)
+            (16 17 21 20)
+            (17 18 22 21)
+            (14 15 19 18)
+            (18 19 23 22)
+        );
+    }
+);
+
+mergePatchPairs
+(
+);
+
+// ************************************************************************* //
