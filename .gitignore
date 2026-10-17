@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data & Models (never commit large raw datasets or weights)
+data/raw/
+data/processed/
+*.nc
+*.h5
+*.hdf5
+*.npy
+*.npz
+*.csv.gz
+
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/
