@@ -19,6 +19,9 @@ htmlcov/
 # Data & Models (never commit large raw datasets or weights)
 data/raw/
 data/processed/
+checkpoints/
+*.pt
+*.joblib
 *.nc
 *.h5
 *.hdf5
