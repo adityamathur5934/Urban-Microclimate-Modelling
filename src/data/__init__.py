@@ -8,10 +8,18 @@ from src.data.contract import (
     CFDSolverMetadata,
     TargetFields,
     LayoutFamily,
+    TargetVariableType,
+    DataValidationError,
+    MissingFieldValidationError,
+    ShapeMismatchValidationError,
+    NonFiniteValueError,
+    PhysicalConstraintValidationError,
+    CoordinateGridValidationError,
+    IncompatibleUnitsError,
 )
 from src.data.features import GeometricFeatureExtractor, GeometricFeatures
-from src.data.rasterizer import LayoutRasterizer, RasterizedInput
-from src.data.normalization import FieldNormalizer, FeatureNormalizer
+from src.data.rasterizer import LayoutRasterizer, RasterizedInput, verify_spatial_alignment
+from src.data.normalization import FieldNormalizer, FeatureNormalizer, DataLeakageError
 from src.data.split import LayoutSplitter, DatasetSplit
 from src.data.config import PreprocessingConfig
 from src.data.loader import LayoutDataLoader
@@ -25,10 +33,20 @@ __all__ = [
     "CFDSolverMetadata",
     "TargetFields",
     "LayoutFamily",
+    "TargetVariableType",
+    "DataValidationError",
+    "MissingFieldValidationError",
+    "ShapeMismatchValidationError",
+    "NonFiniteValueError",
+    "PhysicalConstraintValidationError",
+    "CoordinateGridValidationError",
+    "IncompatibleUnitsError",
+    "DataLeakageError",
     "GeometricFeatureExtractor",
     "GeometricFeatures",
     "LayoutRasterizer",
     "RasterizedInput",
+    "verify_spatial_alignment",
     "FieldNormalizer",
     "FeatureNormalizer",
     "LayoutSplitter",

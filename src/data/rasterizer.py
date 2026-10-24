@@ -7,7 +7,12 @@ from typing import Optional, Tuple
 import numpy as np
 from scipy.ndimage import distance_transform_edt
 
-from src.data.contract import UrbanLayoutSample
+from src.data.contract import (
+    UrbanLayoutSample,
+    ShapeMismatchValidationError,
+    NonFiniteValueError,
+    PhysicalConstraintValidationError,
+)
 
 
 @dataclass
@@ -150,3 +155,110 @@ class LayoutRasterizer:
             building_mask=mask.copy(),
             dx_dy_m=(dx, dy),
         )
+
+
+def verify_spatial_alignment(
+    rasterized: RasterizedInput,
+    sample: UrbanLayoutSample,
+    check_zero_interiors: bool = True,
+) -> bool:
+    """Verifies complete spatial and physical alignment between rasterized tensors and layout sample.
+
+    Parameters
+    ----------
+    rasterized : RasterizedInput
+        The output from LayoutRasterizer.rasterize().
+    sample : UrbanLayoutSample
+        The source urban layout sample.
+    check_zero_interiors : bool
+        If True, validates that all target channels are strictly zero within building interiors.
+
+    Returns
+    -------
+    bool
+        True if spatial alignment and physical integrity checks pass.
+
+    Raises
+    ------
+    ShapeMismatchValidationError
+        If spatial dimensions (Ny, Nx) do not match metadata grid_shape.
+    NonFiniteValueError
+        If channels or target fields contain NaN or Inf values.
+    PhysicalConstraintValidationError
+        If mask mismatches, coordinates are out of bounds, or building interiors are non-zero.
+    """
+    ny, nx = sample.metadata.grid_shape
+
+    # 1. Identity match
+    if rasterized.layout_id != sample.metadata.layout_id:
+        raise PhysicalConstraintValidationError(
+            f"Layout ID mismatch: rasterized has '{rasterized.layout_id}', sample has '{sample.metadata.layout_id}'"
+        )
+
+    # 2. Dimensions and shape checks
+    if rasterized.channels.ndim != 3:
+        raise ShapeMismatchValidationError(
+            f"rasterized.channels must be 3D (C, Ny, Nx), got shape {rasterized.channels.shape}"
+        )
+    if rasterized.channels.shape[1:] != (ny, nx):
+        raise ShapeMismatchValidationError(
+            f"rasterized.channels spatial dimensions {rasterized.channels.shape[1:]} != expected grid_shape {(ny, nx)}"
+        )
+    if rasterized.target_field.ndim != 3:
+        raise ShapeMismatchValidationError(
+            f"rasterized.target_field must be 3D (C, Ny, Nx), got shape {rasterized.target_field.shape}"
+        )
+    if rasterized.target_field.shape[1:] != (ny, nx):
+        raise ShapeMismatchValidationError(
+            f"rasterized.target_field spatial dimensions {rasterized.target_field.shape[1:]} != expected grid_shape {(ny, nx)}"
+        )
+    if rasterized.building_mask.shape != (ny, nx):
+        raise ShapeMismatchValidationError(
+            f"rasterized.building_mask shape {rasterized.building_mask.shape} != expected grid_shape {(ny, nx)}"
+        )
+
+    # 3. Mask agreement
+    if not np.array_equal(rasterized.building_mask, sample.geometry.building_mask):
+        mismatches = int(np.count_nonzero(rasterized.building_mask != sample.geometry.building_mask))
+        raise PhysicalConstraintValidationError(
+            f"rasterized.building_mask does not match sample.geometry.building_mask ({mismatches} mismatched cells)."
+        )
+
+    # 4. Non-finite value checks
+    if np.any(np.isnan(rasterized.channels)) or np.any(np.isinf(rasterized.channels)):
+        nan_c = int(np.count_nonzero(np.isnan(rasterized.channels)))
+        inf_c = int(np.count_nonzero(np.isinf(rasterized.channels)))
+        raise NonFiniteValueError(f"rasterized.channels contains non-finite values ({nan_c} NaNs, {inf_c} Infs).")
+
+    if np.any(np.isnan(rasterized.target_field)) or np.any(np.isinf(rasterized.target_field)):
+        nan_t = int(np.count_nonzero(np.isnan(rasterized.target_field)))
+        inf_t = int(np.count_nonzero(np.isinf(rasterized.target_field)))
+        raise NonFiniteValueError(f"rasterized.target_field contains non-finite values ({nan_t} NaNs, {inf_t} Infs).")
+
+    # 5. Normalized coordinate bounds
+    if "coord_x_norm" in rasterized.channel_names:
+        idx_x = rasterized.channel_names.index("coord_x_norm")
+        x_grid = rasterized.channels[idx_x]
+        if np.min(x_grid) < -1e-5 or np.max(x_grid) > 1.0 + 1e-5:
+            raise PhysicalConstraintValidationError(
+                f"coord_x_norm values must be in [0, 1], found min={np.min(x_grid):.3f}, max={np.max(x_grid):.3f}"
+            )
+    if "coord_y_norm" in rasterized.channel_names:
+        idx_y = rasterized.channel_names.index("coord_y_norm")
+        y_grid = rasterized.channels[idx_y]
+        if np.min(y_grid) < -1e-5 or np.max(y_grid) > 1.0 + 1e-5:
+            raise PhysicalConstraintValidationError(
+                f"coord_y_norm values must be in [0, 1], found min={np.min(y_grid):.3f}, max={np.max(y_grid):.3f}"
+            )
+
+    # 6. Building interior zeroing
+    if check_zero_interiors and np.any(rasterized.building_mask):
+        for c_idx, t_name in enumerate(rasterized.target_names):
+            vals_inside = rasterized.target_field[c_idx][rasterized.building_mask]
+            if np.any(np.abs(vals_inside) > 1e-6):
+                max_inside = float(np.max(np.abs(vals_inside)))
+                raise PhysicalConstraintValidationError(
+                    f"Target field '{t_name}' contains non-zero values inside building interior (max: {max_inside:.4f})."
+                )
+
+    return True

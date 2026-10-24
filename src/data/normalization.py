@@ -6,6 +6,11 @@ from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 
 
+class DataLeakageError(RuntimeError):
+    """Raised when evaluation or test layouts contaminate normalizer fitting statistics."""
+    pass
+
+
 class FieldNormalizer:
     """Normalizes multi-channel spatial raster tensors or fields.
 
@@ -32,6 +37,7 @@ class FieldNormalizer:
         self.min_: Optional[np.ndarray] = None
         self.max_: Optional[np.ndarray] = None
         self.channel_names_: Optional[Tuple[str, ...]] = None
+        self.fitted_layout_ids_: List[str] = []
 
     @property
     def is_fitted(self) -> bool:
@@ -44,6 +50,7 @@ class FieldNormalizer:
         tensors: List[np.ndarray],
         masks: Optional[List[np.ndarray]] = None,
         channel_names: Optional[Tuple[str, ...]] = None,
+        layout_ids: Optional[List[str]] = None,
     ) -> FieldNormalizer:
         """Fit normalization parameters across a collection of training tensors.
 
@@ -56,6 +63,9 @@ class FieldNormalizer:
             If mask_buildings=True, masked cells are ignored during fit.
         channel_names : Optional[Tuple[str, ...]]
             Names corresponding to each channel.
+        layout_ids : Optional[List[str]]
+            List of unique layout identifiers corresponding to the training samples.
+            Used for leak-free verification against validation/test holdouts.
         """
         if not tensors:
             raise ValueError("Cannot fit on an empty list of tensors.")
@@ -103,8 +113,35 @@ class FieldNormalizer:
         self.std_ = np.array(stds, dtype=np.float32)
         self.min_ = np.array(mins, dtype=np.float32)
         self.max_ = np.array(maxs, dtype=np.float32)
+        self.fitted_layout_ids_ = list(layout_ids) if layout_ids is not None else []
 
         return self
+
+    def verify_no_leakage(self, test_layout_ids: List[str]) -> None:
+        """Verifies that no test or evaluation layout IDs were included during fit().
+
+        Parameters
+        ----------
+        test_layout_ids : List[str]
+            List of layout identifiers assigned to the validation or test holdout split.
+
+        Raises
+        ------
+        DataLeakageError
+            If any test layout ID is found in the training fitted layout IDs.
+        """
+        if not self.is_fitted:
+            raise RuntimeError("FieldNormalizer is not fitted yet.")
+        if not self.fitted_layout_ids_:
+            return
+
+        overlap = set(self.fitted_layout_ids_).intersection(set(test_layout_ids))
+        if overlap:
+            sorted_overlap = sorted(list(overlap))
+            raise DataLeakageError(
+                f"Data leakage detected! FieldNormalizer was fitted on {len(self.fitted_layout_ids_)} layouts, "
+                f"which includes layout(s) {sorted_overlap} belonging to the evaluation/test split."
+            )
 
     def transform(self, tensor: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
         """Normalize a tensor (C, Ny, Nx) using fitted statistics."""
@@ -162,6 +199,7 @@ class FieldNormalizer:
             "min": self.min_.tolist() if self.min_ is not None else None,
             "max": self.max_.tolist() if self.max_ is not None else None,
             "channel_names": list(self.channel_names_) if self.channel_names_ else None,
+            "fitted_layout_ids": list(self.fitted_layout_ids_),
         }
 
     @classmethod
@@ -182,6 +220,8 @@ class FieldNormalizer:
             norm.max_ = np.array(data["max"], dtype=np.float32)
         if data.get("channel_names") is not None:
             norm.channel_names_ = tuple(data["channel_names"])
+        if data.get("fitted_layout_ids") is not None:
+            norm.fitted_layout_ids_ = list(data["fitted_layout_ids"])
         return norm
 
 
@@ -197,13 +237,22 @@ class FeatureNormalizer:
         self.std_: Optional[np.ndarray] = None
         self.min_: Optional[np.ndarray] = None
         self.max_: Optional[np.ndarray] = None
+        self.fitted_layout_ids_: List[str] = []
 
     @property
     def is_fitted(self) -> bool:
         return self.mean_ is not None or self.min_ is not None
 
-    def fit(self, X: np.ndarray) -> FeatureNormalizer:
-        """Fit on 2D array (N, D)."""
+    def fit(self, X: np.ndarray, layout_ids: Optional[List[str]] = None) -> FeatureNormalizer:
+        """Fit on 2D array (N, D).
+
+        Parameters
+        ----------
+        X : np.ndarray
+            Tabular feature matrix (N_samples, D_features).
+        layout_ids : Optional[List[str]]
+            List of layout identifiers corresponding to rows of X for leakage checks.
+        """
         if X.ndim != 2 or X.shape[0] == 0:
             raise ValueError("X must be a non-empty 2D array")
 
@@ -220,7 +269,23 @@ class FeatureNormalizer:
         self.std_ = std.astype(np.float32)
         self.min_ = mn.astype(np.float32)
         self.max_ = mx.astype(np.float32)
+        self.fitted_layout_ids_ = list(layout_ids) if layout_ids is not None else []
         return self
+
+    def verify_no_leakage(self, test_layout_ids: List[str]) -> None:
+        """Verifies that no test or evaluation layout IDs were included during fit()."""
+        if not self.is_fitted:
+            raise RuntimeError("FeatureNormalizer is not fitted yet.")
+        if not self.fitted_layout_ids_:
+            return
+
+        overlap = set(self.fitted_layout_ids_).intersection(set(test_layout_ids))
+        if overlap:
+            sorted_overlap = sorted(list(overlap))
+            raise DataLeakageError(
+                f"Data leakage detected! FeatureNormalizer was fitted on {len(self.fitted_layout_ids_)} layouts, "
+                f"which includes layout(s) {sorted_overlap} belonging to the evaluation/test split."
+            )
 
     def transform(self, X: np.ndarray) -> np.ndarray:
         if not self.is_fitted:
@@ -249,6 +314,7 @@ class FeatureNormalizer:
             "std": self.std_.tolist() if self.std_ is not None else None,
             "min": self.min_.tolist() if self.min_ is not None else None,
             "max": self.max_.tolist() if self.max_ is not None else None,
+            "fitted_layout_ids": list(self.fitted_layout_ids_),
         }
 
     @classmethod
@@ -262,4 +328,6 @@ class FeatureNormalizer:
             norm.min_ = np.array(data["min"], dtype=np.float32)
         if data.get("max") is not None:
             norm.max_ = np.array(data["max"], dtype=np.float32)
+        if data.get("fitted_layout_ids") is not None:
+            norm.fitted_layout_ids_ = list(data["fitted_layout_ids"])
         return norm

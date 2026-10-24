@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 
 from src.data.contract import (
@@ -15,11 +15,68 @@ from src.data.contract import (
     CFDSolverMetadata,
     TargetFields,
     LayoutFamily,
+    DataValidationError,
+    MissingFieldValidationError,
+    ShapeMismatchValidationError,
+    NonFiniteValueError,
 )
 
 
 class LayoutDataLoader:
     """Loads, validates, and serializes UrbanLayoutSamples."""
+
+    @staticmethod
+    def validate_npz_archive(file_path: Union[str, Path]) -> Tuple[bool, List[str]]:
+        """Performs pre-flight inspection of an NPZ archive before loading.
+
+        Returns (is_valid, list_of_issues).
+        """
+        path = Path(file_path)
+        issues: List[str] = []
+        if not path.exists():
+            return False, [f"File not found: {path}"]
+        if not path.is_file():
+            return False, [f"Path is not a regular file: {path}"]
+
+        try:
+            with np.load(path) as data:
+                # 1. Metadata JSON key check
+                if "_metadata_json" not in data:
+                    issues.append(f"Corrupt or missing metadata in {path}: '_metadata_json' key missing.")
+                else:
+                    try:
+                        meta_dict = json.loads(str(data["_metadata_json"][0]))
+                        for sec in ("metadata", "environment", "cfd_solver"):
+                            if sec not in meta_dict:
+                                issues.append(f"Missing required section '{sec}' in metadata JSON.")
+                        if "metadata" in meta_dict and "grid_shape" in meta_dict["metadata"]:
+                            grid_shape = tuple(meta_dict["metadata"]["grid_shape"])
+                        else:
+                            grid_shape = None
+                    except Exception as e:
+                        issues.append(f"Failed to parse '_metadata_json': {e}")
+                        grid_shape = None
+
+                # 2. Required array keys
+                for req in ("height_map", "building_mask", "pedestrian_wind_speed"):
+                    if req not in data:
+                        issues.append(f"Missing required array '{req}' in archive.")
+
+                # 3. Shape and non-finite checks if arrays present
+                if grid_shape is not None:
+                    for arr_name in ("height_map", "building_mask", "pedestrian_wind_speed"):
+                        if arr_name in data:
+                            arr = data[arr_name]
+                            if arr.shape != grid_shape:
+                                issues.append(
+                                    f"Array '{arr_name}' shape {arr.shape} does not match grid_shape {grid_shape}."
+                                )
+                            if np.issubdtype(arr.dtype, np.floating) and (np.isnan(arr).any() or np.isinf(arr).any()):
+                                issues.append(f"Array '{arr_name}' contains non-finite values (NaN/Inf).")
+        except Exception as e:
+            issues.append(f"Failed to open archive {path}: {e}")
+
+        return len(issues) == 0, issues
 
     @staticmethod
     def save_sample_npz(sample: UrbanLayoutSample, output_path: Union[str, Path]) -> None:
@@ -84,9 +141,17 @@ class LayoutDataLoader:
 
         with np.load(path) as data:
             if "_metadata_json" not in data:
-                raise KeyError(f"Corrupt or missing metadata in {path}")
+                raise MissingFieldValidationError(f"Corrupt or missing metadata in {path}: '_metadata_json' key missing.")
 
-            meta_dict = json.loads(str(data["_metadata_json"][0]))
+            try:
+                meta_dict = json.loads(str(data["_metadata_json"][0]))
+            except Exception as e:
+                raise DataValidationError(f"Invalid JSON in metadata for {path}: {e}") from e
+
+            for sec in ("metadata", "environment", "cfd_solver"):
+                if sec not in meta_dict:
+                    raise MissingFieldValidationError(f"Missing required section '{sec}' in metadata of {path}")
+
             m = meta_dict["metadata"]
             e = meta_dict["environment"]
             c = meta_dict["cfd_solver"]
@@ -118,9 +183,10 @@ class LayoutDataLoader:
             )
 
             if "height_map" not in data or "building_mask" not in data:
-                raise KeyError(f"Missing geometry arrays in {path}")
+                missing_geom = [k for k in ("height_map", "building_mask") if k not in data]
+                raise MissingFieldValidationError(f"Missing geometry arrays in {path}: {missing_geom}")
             if "pedestrian_wind_speed" not in data:
-                raise KeyError(f"Missing pedestrian_wind_speed target in {path}")
+                raise MissingFieldValidationError(f"Missing pedestrian_wind_speed target in {path}")
 
             geometry = GeometryData(
                 height_map=data["height_map"],
