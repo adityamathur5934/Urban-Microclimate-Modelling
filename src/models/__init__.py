@@ -12,6 +12,7 @@ from src.models.interfaces import (
 )
 from src.models.baseline_rf import RandomForestBaseline
 from src.models.neural_unet import CompactCNN, CompactUNet
+from src.models.unet import SimpleCNNBaseline
 
 __all__ = [
     "AMLBaselineInterface",
@@ -25,4 +26,5 @@ __all__ = [
     "RandomForestBaseline",
     "CompactUNet",
     "CompactCNN",
+    "SimpleCNNBaseline",
 ]
