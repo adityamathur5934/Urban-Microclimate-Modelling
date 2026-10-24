@@ -15,6 +15,7 @@ from src.data.normalization import FieldNormalizer, FeatureNormalizer
 from src.data.split import LayoutSplitter, DatasetSplit
 from src.data.config import PreprocessingConfig
 from src.data.loader import LayoutDataLoader
+from src.data.area_averaging import compute_area_averaged_wind_speed
 
 __all__ = [
     "UrbanLayoutSample",
@@ -34,4 +35,5 @@ __all__ = [
     "DatasetSplit",
     "PreprocessingConfig",
     "LayoutDataLoader",
+    "compute_area_averaged_wind_speed",
 ]
