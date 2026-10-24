@@ -1,8 +1,9 @@
-"""Unit tests for the CFD reference data pipeline bridge and contract integration."""
-
+import sys
+from pathlib import Path
 import pytest
 import numpy as np
-from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 from src.data.contract import UrbanLayoutSample, LayoutFamily
 from src.data.loader import LayoutDataLoader
@@ -114,3 +115,53 @@ def test_cfd_field_normalizer_invertibility():
         r.target_field[0][outdoor],
         rtol=1e-5,
     )
+
+
+def test_interpolate_samples_to_cartesian_grid():
+    """Verify interpolation from scattered sample points to regular 2D grid."""
+    from cfd.scripts.foam_to_contract import interpolate_samples_to_cartesian_grid
+
+    sample_dict = {
+        "x": np.array([0.0, 100.0, 0.0, 100.0, 50.0]),
+        "y": np.array([0.0, 0.0, 50.0, 50.0, 25.0]),
+        "z": np.array([1.75, 1.75, 1.75, 1.75, 1.75]),
+        "Ux": np.array([5.0, 3.0, 5.0, 4.0, 2.5]),
+        "Uy": np.array([0.0, 0.5, 0.0, -0.2, 0.1]),
+    }
+
+    h_map, b_mask, fields = interpolate_samples_to_cartesian_grid(
+        sample_data=sample_dict,
+        grid_shape=(16, 32),
+        domain_size_m=(100.0, 50.0, 30.0),
+        building_bounds=(40.0, 60.0, 20.0, 30.0, 15.0),
+    )
+
+    assert h_map.shape == (16, 32)
+    assert b_mask.shape == (16, 32)
+    assert "Ux" in fields
+    assert fields["Ux"].shape == (16, 32)
+    # Check that solid building cells have velocity clamped to 0.0
+    assert np.all(fields["Ux"][b_mask] == 0.0)
+
+
+def test_foam_to_contract_cli_demo(tmp_path: Path):
+    """Verify CLI demo mode generates and exports a valid NPZ reference sample."""
+    import subprocess
+    out_npz = tmp_path / "demo_block.npz"
+    cmd = [
+        sys.executable,
+        str(PROJECT_ROOT / "cfd" / "scripts" / "foam_to_contract.py"),
+        "--layout-id", "demo_cli_test",
+        "--generate-demo",
+        "--output-npz", str(out_npz),
+        "--nx", "32",
+        "--ny", "16",
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    assert out_npz.exists()
+
+    loaded = LayoutDataLoader.load_sample_npz(out_npz)
+    loaded.validate()
+    assert loaded.layout_id == "demo_cli_test"
+    assert loaded.metadata.grid_shape == (16, 32)
+
