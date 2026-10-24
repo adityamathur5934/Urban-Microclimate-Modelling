@@ -144,12 +144,12 @@ class GeometricFeatureExtractor:
         if sample.targets.area_averaged_wind_speed is not None:
             target_scalar = float(sample.targets.area_averaged_wind_speed)
         else:
-            # Compute over pedestrian outdoor area (where mask is False)
-            outdoor_mask = ~mask
-            if np.any(outdoor_mask):
-                target_scalar = float(np.mean(sample.targets.pedestrian_wind_speed[outdoor_mask]))
-            else:
-                target_scalar = float(np.mean(sample.targets.pedestrian_wind_speed))
+            from src.data.area_averaging import compute_area_averaged_wind_speed
+            target_scalar = compute_area_averaged_wind_speed(
+                field=sample.targets.pedestrian_wind_speed,
+                mask=mask,
+                resolution_m=(dy, dx),
+            )
 
         return GeometricFeatures(
             layout_id=sample.metadata.layout_id,
