@@ -10,9 +10,22 @@ from src.models.interfaces import (
     TargetConfig,
     TargetType,
 )
-from src.models.baseline_rf import RandomForestBaseline
-from src.models.neural_unet import CompactCNN, CompactUNet
-from src.models.unet import SimpleCNNBaseline
+from src.models.baseline_rf import (
+    BaselineConfig,
+    NaiveMeanBaseline,
+    RandomForestBaseline,
+    run_baseline_experiment,
+)
+
+try:
+    from src.models.neural_unet import CompactCNN, CompactUNet
+    from src.models.unet import SimpleCNNBaseline
+    _NEURAL_AVAILABLE = True
+except ImportError:
+    CompactCNN = None  # type: ignore
+    CompactUNet = None  # type: ignore
+    SimpleCNNBaseline = None  # type: ignore
+    _NEURAL_AVAILABLE = False
 
 __all__ = [
     "AMLBaselineInterface",
