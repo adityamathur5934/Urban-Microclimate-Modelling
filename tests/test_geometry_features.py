@@ -352,7 +352,7 @@ class TestEdgeCases:
         with pytest.raises(Exception):
             sample.validate()
 
-    def test_component_stats_empty_mask():
+    def test_component_stats_empty_mask(self):
         """_building_component_stats on all-False mask → (0, 0, 0, 0, 0)."""
         mask = np.zeros((16, 16), dtype=bool)
         n, mean_a, std_a, max_a, cv_a = _building_component_stats(mask, 1.0, 1.0)
