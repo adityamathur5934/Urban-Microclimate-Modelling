@@ -5,6 +5,8 @@ Provides rigorously documented formulas for:
   - Masked Field RMSE
   - Normalized RMSE (NRMSE) under multiple documented normalization conventions
   - Spatial field area-averaging bridge for comparing DL and AML outputs
+
+Reuses the core evaluation logic in `src.evaluation.metrics`.
 """
 
 from __future__ import annotations
@@ -12,6 +14,14 @@ from __future__ import annotations
 from typing import Any, Dict, Optional, Tuple, Union
 import numpy as np
 import torch
+
+from src.evaluation.metrics import (
+    compute_field_mae,
+    compute_field_rmse,
+    compute_normalized_rmse,
+    compute_max_error,
+    _to_numpy,
+)
 
 
 def field_mae(
@@ -23,18 +33,16 @@ def field_mae(
 
     Formula:
         MAE = (1 / N_outdoor) * sum_{i in outdoor} |pred_i - target_i|
+
+    Units:
+        Same as target field [e.g. m/s].
     """
-    p = pred.detach().cpu().numpy() if isinstance(pred, torch.Tensor) else np.asarray(pred)
-    t = target.detach().cpu().numpy() if isinstance(target, torch.Tensor) else np.asarray(target)
-
-    if fluid_mask is not None:
-        m = fluid_mask.detach().cpu().numpy() if isinstance(fluid_mask, torch.Tensor) else np.asarray(fluid_mask)
-        m = m.astype(bool)
-        if not np.any(m):
-            return 0.0
-        return float(np.mean(np.abs(p[m] - t[m])))
-
-    return float(np.mean(np.abs(p - t)))
+    return compute_field_mae(
+        y_true=target,
+        y_pred=pred,
+        fluid_mask=fluid_mask,
+        check_finite=True,
+    )
 
 
 def field_rmse(
@@ -46,18 +54,16 @@ def field_rmse(
 
     Formula:
         RMSE = sqrt((1 / N_outdoor) * sum_{i in outdoor} (pred_i - target_i)^2)
+
+    Units:
+        Same as target field [e.g. m/s].
     """
-    p = pred.detach().cpu().numpy() if isinstance(pred, torch.Tensor) else np.asarray(pred)
-    t = target.detach().cpu().numpy() if isinstance(target, torch.Tensor) else np.asarray(target)
-
-    if fluid_mask is not None:
-        m = fluid_mask.detach().cpu().numpy() if isinstance(fluid_mask, torch.Tensor) else np.asarray(fluid_mask)
-        m = m.astype(bool)
-        if not np.any(m):
-            return 0.0
-        return float(np.sqrt(np.mean((p[m] - t[m]) ** 2)))
-
-    return float(np.sqrt(np.mean((p - t) ** 2)))
+    return compute_field_rmse(
+        y_true=target,
+        y_pred=pred,
+        fluid_mask=fluid_mask,
+        check_finite=True,
+    )
 
 
 def field_nrmse(
@@ -70,7 +76,7 @@ def field_nrmse(
     """Computes Normalized Root Mean Squared Error (NRMSE).
 
     Different literature uses different normalizing denominators. This function supports
-    and makes explicit the three standard definitions:
+    and makes explicit the standard definitions:
 
     1. normalization == "range" (Default):
        NRMSE_range = RMSE / (y_max - y_min)
@@ -79,43 +85,27 @@ def field_nrmse(
     2. normalization == "inflow":
        NRMSE_inflow = RMSE / U_ref
        Standard in wind engineering and aerodynamics: normalizes error by the approach wind speed.
-       Requires `inflow_speed` to be specified.
+       Requires `inflow_speed` to be specified (> 0).
 
     3. normalization == "std":
        NRMSE_std = RMSE / std(y)
        Statistical normalization: equivalent to sqrt(1 - R^2) when predictions are unbiased.
 
     4. normalization == "mean":
-       NRMSE_mean = RMSE / mean(y)
+       NRMSE_mean = RMSE / |mean(y)|
+
+    Returns:
+        NRMSE as a dimensionless ratio [0, 1].
     """
-    rmse = field_rmse(pred, target, fluid_mask=fluid_mask)
-    t = target.detach().cpu().numpy() if isinstance(target, torch.Tensor) else np.asarray(target)
-
-    if fluid_mask is not None:
-        m = fluid_mask.detach().cpu().numpy() if isinstance(fluid_mask, torch.Tensor) else np.asarray(fluid_mask)
-        m = m.astype(bool)
-        t_valid = t[m] if np.any(m) else t
-    else:
-        t_valid = t
-
-    if normalization == "range":
-        denom = float(np.ptp(t_valid))  # max - min
-    elif normalization == "inflow":
-        if inflow_speed is None or inflow_speed <= 0.0:
-            raise ValueError("inflow_speed must be provided and > 0 when normalization='inflow'")
-        denom = float(inflow_speed)
-    elif normalization == "std":
-        denom = float(np.std(t_valid))
-    elif normalization == "mean":
-        denom = float(np.abs(np.mean(t_valid)))
-    else:
-        raise ValueError(
-            f"Unknown normalization '{normalization}'. Supported: 'range', 'inflow', 'std', 'mean'"
-        )
-
-    if denom <= 1e-8:
-        return 0.0
-    return float(rmse / denom)
+    return compute_normalized_rmse(
+        y_true=target,
+        y_pred=pred,
+        fluid_mask=fluid_mask,
+        normalization=normalization,
+        u_ref=inflow_speed,
+        as_percent=False,
+        check_finite=True,
+    )
 
 
 def field_max_abs_error(
@@ -124,17 +114,12 @@ def field_max_abs_error(
     fluid_mask: Optional[Union[np.ndarray, torch.Tensor]] = None,
 ) -> float:
     """Computes maximum absolute point error over outdoor fluid cells."""
-    p = pred.detach().cpu().numpy() if isinstance(pred, torch.Tensor) else np.asarray(pred)
-    t = target.detach().cpu().numpy() if isinstance(target, torch.Tensor) else np.asarray(target)
-
-    if fluid_mask is not None:
-        m = fluid_mask.detach().cpu().numpy() if isinstance(fluid_mask, torch.Tensor) else np.asarray(fluid_mask)
-        m = m.astype(bool)
-        if not np.any(m):
-            return 0.0
-        return float(np.max(np.abs(p[m] - t[m])))
-
-    return float(np.max(np.abs(p - t)))
+    return compute_max_error(
+        y_true=target,
+        y_pred=pred,
+        fluid_mask=fluid_mask,
+        check_finite=True,
+    )
 
 
 def aggregate_spatial_field_to_scalar(
@@ -149,8 +134,8 @@ def aggregate_spatial_field_to_scalar(
     Formula:
         area_avg = (1 / |Omega_outdoor|) * sum_{(y, x) in Omega_outdoor} field(y, x)
     """
-    f = field_2d.detach().cpu().numpy() if isinstance(field_2d, torch.Tensor) else np.asarray(field_2d)
-    m = building_mask.detach().cpu().numpy() if isinstance(building_mask, torch.Tensor) else np.asarray(building_mask)
+    f = _to_numpy(field_2d)
+    m = _to_numpy(building_mask)
 
     if f.ndim == 3 and f.shape[0] == 1:
         f = f[0]
@@ -159,7 +144,7 @@ def aggregate_spatial_field_to_scalar(
 
     outdoor_mask = (~m.astype(bool))
     if not np.any(outdoor_mask):
-        return 0.0
+        raise ValueError("Cannot aggregate over empty outdoor domain: building_mask covers 100% of cells.")
     return float(np.mean(f[outdoor_mask]))
 
 
