@@ -1,4 +1,4 @@
-"""Pydantic schemas for the Urban Microclimate Scientific API."""
+"""Pydantic schemas for the Urban Microclimate Scientific API with strict scientific data provenance."""
 
 from __future__ import annotations
 
@@ -19,6 +19,8 @@ class LayoutSummary(BaseModel):
     is_held_out: bool = False
     has_cfd_ground_truth: bool = True
     active_fluid_fraction: float = 0.85
+    data_provenance: str = "CANONICAL_AERODYNAMIC_BENCHMARK"
+    provenance_label: str = "Canonical Benchmark Fixture"
 
 
 class LayoutDetail(BaseModel):
@@ -39,6 +41,8 @@ class LayoutDetail(BaseModel):
     geometric_features: Dict[str, float] = Field(default_factory=dict)
     buildings_count: int = 0
     building_heights: List[float] = Field(default_factory=list)
+    data_provenance: str = "CANONICAL_AERODYNAMIC_BENCHMARK"
+    provenance_label: str = "Canonical Aerodynamic Benchmark (Castro & Robins 1977)"
 
 
 class SpatialFieldData(BaseModel):
@@ -58,6 +62,9 @@ class SpatialFieldData(BaseModel):
     # Pre-calculated field statistics
     stats: Dict[str, float]
     building_boxes: List[Dict[str, Any]] = Field(default_factory=list)
+    data_provenance: str = "CANONICAL_AERODYNAMIC_BENCHMARK"
+    provenance_description: str = "Analytical Aerodynamic Benchmark Reference Field"
+    has_velocity_components: bool = True
 
 
 class SurrogatePredictionRequest(BaseModel):
@@ -88,6 +95,9 @@ class SurrogatePredictionResponse(BaseModel):
     active_fluid_fraction: float
     inference_latency_ms: float
     speedup_factor: float
+    speedup_notes: str = "Estimated speedup vs 2D OpenFOAM RANS solve (~12s)"
+    device: str = "cpu"
+    data_provenance: str = "SURROGATE_PREDICTION"
     stats_pred: Dict[str, float]
     stats_err: Dict[str, float]
 
@@ -106,11 +116,13 @@ class ProbeQueryResponse(BaseModel):
     x_m: float
     y_m: float
     is_inside_building: bool
+    status_label: str = "Valid Fluid Cell"
     cfd_velocity_mps: float
     surrogate_velocity_mps: float
     abs_residual_mps: float
     relative_residual_pct: float
     inflow_speed_mps: float
+    data_provenance: str = "CANONICAL_AERODYNAMIC_BENCHMARK"
 
 
 class TransectQueryRequest(BaseModel):
@@ -134,6 +146,7 @@ class TransectQueryResponse(BaseModel):
     max_divergence_mps: float
     max_divergence_coord_m: float
     local_jet_match_pct: float
+    data_provenance: str = "CANONICAL_AERODYNAMIC_BENCHMARK"
 
 
 class ExperimentRecord(BaseModel):
@@ -149,6 +162,8 @@ class ExperimentRecord(BaseModel):
     training_progress_pct: Optional[float] = None
     current_epoch: Optional[int] = None
     total_epochs: Optional[int] = None
+    is_implemented: bool = True
+    provenance: str = "BENCHMARK_EXPERIMENT"
     created_at: str
 
 
@@ -169,8 +184,12 @@ class SystemOverview(BaseModel):
     dataset_version: str = "v0.9.4-research"
     stack_info: str = "PyTorch 2.3 • OpenFOAM"
     geometric_corpus_count: int
+    corpus_target_total: int = 538
+    corpus_provenance: str = "SYNTHETIC_BENCHMARK_COHORT"
+    corpus_status_desc: str = "24 Synthetic Benchmarks Loaded • Target UrbanTALES: 538 Layouts"
     topological_families_count: int
     ground_truth_solvers_count: int
+    solvers_status_desc: str = "1 OpenFOAM Case Setup • 24 Analytical Flow Benchmarks"
     total_solvers_target: int
     mesh_resolution_desc: str
     model_checkpoints_count: int
@@ -179,5 +198,6 @@ class SystemOverview(BaseModel):
     zero_leakage_change_pct: float
     test_partition_desc: str
     selected_layout_id: str
-    backend_status: str = "Connected"
+    backend_status: str = "Connected (Synthetic/Benchmark Mode)"
     device: str = "cpu"
+    is_demonstration_fixture: bool = True

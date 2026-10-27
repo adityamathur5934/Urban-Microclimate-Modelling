@@ -31,8 +31,10 @@
   --status-green-border: #a7f3d0;
   --status-amber: #f59e0b;
   --status-amber-light: #fffbeb;
+  --status-amber-border: #fde68a;
   --status-red: #ef4444;
   --status-red-light: #fef2f2;
+  --status-red-border: #fecaca;
 
   /* Borders & Shadows */
   --border-light: #e2e8f0;
@@ -377,12 +379,55 @@ body {
 }
 
 /* ==========================================================================
+   Scientific Provenance Banner
+   ========================================================================== */
+.provenance-banner {
+  background-color: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  color: #92400e;
+  padding: 6px 20px;
+  font-size: 11.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.provenance-banner strong {
+  font-weight: 700;
+  color: #78350f;
+}
+
+.provenance-tag {
+  background-color: #fef3c7;
+  border: 1px solid #fcd34d;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.provenance-badge {
+  background-color: #d97706;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+/* ==========================================================================
    Content Views (Tab Switching)
    ========================================================================== */
 .view-container {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 18px 24px 30px 24px;
   display: none;
 }
 
@@ -392,7 +437,7 @@ body {
 
 /* View Header */
 .view-header {
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
@@ -485,7 +530,7 @@ body {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .kpi-card {
@@ -503,7 +548,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .kpi-label {
@@ -515,7 +560,7 @@ body {
 }
 
 .kpi-badge {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 4px;
@@ -528,11 +573,11 @@ body {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .kpi-value {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--text-main);
   letter-spacing: -0.6px;
@@ -541,7 +586,7 @@ body {
 }
 
 .kpi-unit {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
   font-weight: 500;
 }
@@ -553,7 +598,7 @@ body {
 }
 
 .kpi-substat {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 500;
   color: var(--text-muted);
   margin-top: 6px;
@@ -571,7 +616,7 @@ body {
   border: 1px solid var(--border-light);
   border-radius: 8px;
   box-shadow: var(--shadow-sm);
-  margin-bottom: 20px;
+  margin-bottom: 18px;
   overflow: hidden;
 }
 
@@ -689,16 +734,16 @@ body {
 /* Floating Live Probe Tooltip Card */
 .floating-probe-card {
   position: absolute;
-  top: 90px;
-  right: 28px;
-  background-color: rgba(255, 255, 255, 0.94);
+  top: 70px;
+  right: 24px;
+  background-color: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-medium);
   border-radius: 8px;
   padding: 12px 14px;
   box-shadow: var(--shadow-lg);
   font-size: 11.5px;
-  width: 220px;
+  width: 240px;
   z-index: 20;
   pointer-events: none;
 }
@@ -888,7 +933,13 @@ body {
 .badge-amber {
   background-color: var(--status-amber-light);
   color: #92400e;
-  border: 1px solid #fde68a;
+  border: 1px solid var(--status-amber-border);
+}
+
+.badge-red {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
 }
 
 .badge-split {
@@ -973,7 +1024,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 11.5px;
+  font-size: 11px;
   font-family: var(--font-mono);
   background-color: var(--bg-subtle);
   border: 1px solid var(--border-light);
@@ -991,7 +1042,7 @@ body {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .triplet-panel {
@@ -1216,6 +1267,95 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* ==========================================================================
+   Catalog & Explorer Views (Layouts, Models, CFD, Docs)
+   ========================================================================== */
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.catalog-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.catalog-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-blue-border);
+}
+
+.catalog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.catalog-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.catalog-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.catalog-specs {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  background-color: var(--bg-subtle);
+  border-radius: 6px;
+}
+
+.doc-section {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  max-width: 900px;
+  margin-bottom: 20px;
+}
+
+.doc-section h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 6px;
+}
+
+.doc-section p, .doc-section ul {
+  font-size: 12.5px;
+  color: #334155;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.doc-section ul {
+  padding-left: 20px;
 }
 
 /* ==========================================================================

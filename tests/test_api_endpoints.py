@@ -91,17 +91,55 @@ def test_api_surrogate_predict():
     assert len(data["abs_error_field"]) == 128 * 128
 
 
+def test_api_overview_provenance_and_honest_architectures():
+    """Verify overview returns provenance banner info and honest model architectures (no FNO/PINN)."""
+    resp = client.get("/api/overview")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "corpus_provenance" in data
+    assert "corpus_status_desc" in data
+    assert "is_demonstration_fixture" in data
+    # Verify fabricated FNO/PINN architectures are not claimed in model_architectures
+    for arch in data.get("model_architectures", []):
+        assert "FNO" not in arch
+        assert "PINN" not in arch
+
+
+def test_api_layout_velocity_vector_fields():
+    """Verify 2D spatial fields include horizontal velocity components u and v."""
+    resp = client.get("/api/layouts/layout_042_staggered_canyon/fields")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "cfd_velocity_u" in data
+    assert "cfd_velocity_v" in data
+    assert len(data["cfd_velocity_u"]) == 128 * 128
+    assert len(data["cfd_velocity_v"]) == 128 * 128
+    assert data["has_velocity_components"] is True
+
+
 def test_api_probe_query():
-    """Verify physical probe coordinates query."""
-    resp = client.get("/api/layouts/layout_042_staggered_canyon/probe?x=52.4&y=48.1&model_id=unet-v2-resblock4")
+    """Verify physical probe coordinates query for fluid and building interior cells."""
+    # Fluid cell query
+    resp = client.get("/api/layouts/layout_042_staggered_canyon/probe?x=10.0&y=10.0&model_id=unet-v2-resblock4")
     assert resp.status_code == 200
     data = resp.json()
 
-    assert data["x_m"] == 52.4
-    assert data["y_m"] == 48.1
+    assert data["x_m"] == 10.0
+    assert data["y_m"] == 10.0
     assert data["cfd_velocity_mps"] > 0.0
     assert data["surrogate_velocity_mps"] > 0.0
     assert data["abs_residual_mps"] >= 0.0
+    assert "status_label" in data
+    assert "Fluid" in data["status_label"]
+
+    # Solid building cell query (center of building box B2 is (50.0, 30.0) in physical coords)
+    resp_solid = client.get("/api/layouts/layout_042_staggered_canyon/probe?x=50.0&y=30.0&model_id=unet-v2-resblock4")
+    assert resp_solid.status_code == 200
+    solid_data = resp_solid.json()
+    assert solid_data["is_inside_building"] is True
+    assert "Solid" in solid_data["status_label"]
+    assert solid_data["cfd_velocity_mps"] == 0.0
+
 
 
 def test_api_transect_query():
