@@ -253,7 +253,7 @@ def test_npz_serialization_and_feature_extraction(tmp_path):
     extractor = GeometricFeatureExtractor()
     features = extractor.extract(loaded)
     vec = features.to_feature_vector()
-    assert len(vec) == 11
+    assert len(vec) == 26
     assert features.target_area_averaged_wind_speed > 0.0
 
     # Rasterization for Model 2 (Neural Surrogate)

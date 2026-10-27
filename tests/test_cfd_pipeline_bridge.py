@@ -93,7 +93,7 @@ def test_cfd_sample_tabular_features_for_ml_baseline():
     assert features.target_area_averaged_wind_speed > 0.0
 
     vec = features.to_feature_vector()
-    assert len(vec) == 11
+    assert len(vec) == 26
     assert not np.any(np.isnan(vec))
 
 
