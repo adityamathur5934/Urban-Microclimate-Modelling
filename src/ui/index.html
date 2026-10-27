@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Microclimate Lab — CFD & Neural Surrogates</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- ====================================================================
+         Left Navigation Sidebar
+         ==================================================================== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-icon">μC</div>
+        <div class="logo-text">
+          <h1>Microclimate Lab</h1>
+          <p>CFD & Neural Surrogates</p>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Research Workspace</div>
+        <a class="nav-item active" data-view="overview" id="nav-overview">
+          <span class="nav-icon">📊</span>
+          <span>Overview</span>
+        </a>
+        <a class="nav-item" data-view="studio" id="nav-layouts">
+          <span class="nav-icon">🏢</span>
+          <span>Urban Layouts</span>
+        </a>
+        <a class="nav-item" data-view="studio" id="nav-cfd">
+          <span class="nav-icon">💨</span>
+          <span>CFD Simulations</span>
+        </a>
+        <a class="nav-item" data-view="studio" id="nav-models">
+          <span class="nav-icon">🧠</span>
+          <span>Surrogate Models</span>
+        </a>
+        <a class="nav-item" data-view="studio" id="nav-studio">
+          <span class="nav-icon">🔍</span>
+          <span>Field Comparison</span>
+        </a>
+        <a class="nav-item" data-view="overview" id="nav-experiments">
+          <span class="nav-icon">🧪</span>
+          <span>Experiments</span>
+        </a>
+        <a class="nav-item" data-view="studio" id="nav-evaluation">
+          <span class="nav-icon">📈</span>
+          <span>Evaluation</span>
+        </a>
+        <a class="nav-item" data-view="overview" id="nav-dataset">
+          <span class="nav-icon">🗄️</span>
+          <span>Dataset</span>
+        </a>
+
+        <div class="nav-section-title" style="margin-top: 14px;">System</div>
+        <a class="nav-item" href="/docs/frontend-integration-plan.md" target="_blank">
+          <span class="nav-icon">📖</span>
+          <span>Documentation</span>
+        </a>
+        <a class="nav-item" data-view="overview">
+          <span class="nav-icon">⚙️</span>
+          <span>Settings</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="system-status">
+          <span class="status-dot pulse"></span>
+          <span>Backend Connected (8000)</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ====================================================================
+         Main Workspace Wrapper
+         ==================================================================== -->
+    <main class="main-wrapper">
+      
+      <!-- Top Application Header Bar -->
+      <header class="top-header">
+        <div class="header-left">
+          <div class="workspace-badge">
+            <span>Workspace:</span>
+            <strong>Active Session</strong>
+          </div>
+          <div class="search-box">
+            <span>🔍</span>
+            <input type="text" placeholder="Search layouts, runs, models..." id="global-search">
+            <span class="search-shortcut">⌘K</span>
+          </div>
+        </div>
+
+        <div class="header-right">
+          <div class="backend-badge">
+            <span class="status-dot"></span>
+            <span id="backend-label">Backend: Local Live Fixture</span>
+          </div>
+          <div class="header-actions">
+            <button class="icon-button" title="Documentation" onclick="window.open('/docs/frontend-integration-plan.md', '_blank')">❓</button>
+            <button class="icon-button" title="Notifications">🔔</button>
+          </div>
+          <div class="user-profile">
+            <div class="avatar">EV</div>
+            <div class="user-info">
+              <span class="user-name">Dr. E. Vance</span>
+              <span class="user-role">Urban Physics Group</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- ================================================================
+           SCREEN A: Research Overview Dashboard
+           ================================================================ -->
+      <section class="view-container active" id="view-overview">
+        
+        <!-- View Header -->
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <div class="domain-tag">Domain: Computational Wind Engineering <span>• Active Dataset: UrbanFlow-2D v1.4</span></div>
+            <h2>Urban Microclimate Overview</h2>
+            <p class="view-subtitle">Explore CFD reference fields, evaluate neural surrogates, and analyze generalization across unseen urban layouts.</p>
+          </div>
+          <div class="view-actions">
+            <button class="btn btn-primary" id="btn-new-experiment">➕ New Experiment</button>
+            <button class="btn btn-secondary" id="btn-explore-layouts">Explore Layouts</button>
+            <button class="btn btn-navy" id="btn-view-eval">View Evaluation</button>
+          </div>
+        </div>
+
+        <!-- 4 KPI Stat Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" id="kpi-corpus">
+            <!-- Dynamic KPI Corpus -->
+          </div>
+          <div class="kpi-card" id="kpi-solvers">
+            <!-- Dynamic KPI Solvers -->
+          </div>
+          <div class="kpi-card" id="kpi-models">
+            <!-- Dynamic KPI Models -->
+          </div>
+          <div class="kpi-card" id="kpi-benchmark">
+            <!-- Dynamic KPI Benchmark -->
+          </div>
+        </div>
+
+        <!-- Spatial Velocity Field Card -->
+        <div class="field-card">
+          <div class="field-card-header">
+            <div class="field-title-group">
+              <h3>Spatial Velocity Magnitude Field (|U|)</h3>
+              <p id="field-subtitle">Layout #042 - Staggered Array</p>
+            </div>
+            <div class="field-controls-group">
+              <div class="toggle-group">
+                <button class="toggle-btn active" data-overview-mode="cfd">CFD Reference [OpenFOAM]</button>
+                <button class="toggle-btn" data-overview-mode="surrogate">Surrogate Prediction [U-Net]</button>
+                <button class="toggle-btn" data-overview-mode="residual">Absolute Residual (|ΔU|)</button>
+              </div>
+              <div class="view-options">
+                <span class="view-tag">200m × 200m</span>
+                <label><input type="checkbox" id="chk-overview-mask" checked> Mask</label>
+                <label><input type="checkbox" id="chk-overview-streamlines" checked> Streamlines</label>
+                <label><input type="checkbox" id="chk-overview-grid"> 128² Grid</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="canvas-stage">
+            <div class="inflow-banner">INLET: u₀ (5.0 m/s) ➔</div>
+            <canvas id="overview-canvas" class="field-canvas" width="1024" height="440"></canvas>
+            
+            <!-- Floating Interactive Probe Card -->
+            <div class="floating-probe-card" id="overview-floating-probe">
+              <!-- Dynamically populated by API queryProbe -->
+            </div>
+          </div>
+
+          <div class="colorbar-wrapper">
+            <div class="colorbar-header">
+              <span>Scalar Field: Velocity Magnitude |U| (m/s) — Min: 0.00 | Mean: 3.81 | Max: 7.24 m/s</span>
+            </div>
+            <div class="colorbar-bar" id="overview-colorbar"></div>
+            <div class="colorbar-ticks">
+              <span>0.0</span>
+              <span>1.5</span>
+              <span>3.0</span>
+              <span>4.5</span>
+              <span>6.0</span>
+              <span>7.5+</span>
+            </div>
+            <p class="colorbar-caption">Demonstration field generated from pre-baked synthetic OpenFOAM benchmark</p>
+          </div>
+        </div>
+
+        <!-- Neural Surrogates & Generalization Benchmark Table -->
+        <div class="benchmark-card">
+          <div class="benchmark-header">
+            <h3>Neural Surrogates & Generalization Benchmark</h3>
+            <span class="badge badge-green">● Zero-Leakage Split Active</span>
+          </div>
+          <p class="benchmark-subtitle">Out-of-distribution performance evaluated on disjoint held-out topological layout families</p>
+
+          <div class="table-responsive">
+            <table class="scientific-table">
+              <thead>
+                <tr>
+                  <th>Experiment ID</th>
+                  <th>Architecture / Model</th>
+                  <th>Dataset Split</th>
+                  <th>Inflow Condition</th>
+                  <th>Held-Out MAE</th>
+                  <th>Max |ΔU|</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="benchmark-table-body">
+                <!-- Dynamically populated by API fetchExperiments -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="protocol-footer">
+            <div class="protocol-meta">
+              <span>Dataset: <strong>UrbanFlow-2D v1.4</strong></span>
+              <span>Stack: <strong>PyTorch 2.3 • OpenFOAM</strong></span>
+              <span>Release: <strong>v0.9.4-research</strong></span>
+            </div>
+            <div>
+              <span>Research Protocol: Zero-leakage verification guarantees test geometries share 0% polygon adjacency with training sets.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           SCREEN B: Field Comparison Studio (Synchronized Triplet)
+           ================================================================ -->
+      <section class="view-container" id="view-studio">
+        
+        <!-- View Header -->
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h2>Field Comparison Studio</h2>
+              <span class="badge badge-blue">Validation Mode</span>
+              <span class="badge badge-green">● Synchronized 1:1</span>
+            </div>
+            <p class="view-subtitle">Synchronized multi-panel inspection: CFD reference truth vs. deep-neural surrogate prediction and spatial error residuals.</p>
+          </div>
+          <div class="view-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-point-probe">📍 Point Probe</button>
+            <button class="btn btn-secondary btn-sm" id="btn-sample-transect">📏 Sample Transect</button>
+            <button class="btn btn-secondary btn-sm" onclick="alert('Downloading validated NPZ dataset archive...')">💾 Download .npz</button>
+            <button class="btn btn-primary btn-sm" id="btn-export-triplet">🖼️ Export Triplet Figure</button>
+          </div>
+        </div>
+
+        <!-- Studio Control Bar -->
+        <div class="studio-control-bar">
+          <div class="studio-filters">
+            <div class="filter-group">
+              <span class="filter-label">Domain:</span>
+              <select class="select-input" id="studio-select-layout">
+                <!-- Dynamically loaded layouts -->
+              </select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">Surrogate:</span>
+              <select class="select-input" id="studio-select-model">
+                <option value="unet-v2-resblock4" selected>U-Net-v2-ResBlock-4 (Epoch 250)</option>
+                <option value="compact-cnn-dilated">Dilated-CNN-Surrogate-v1</option>
+                <option value="rf-baseline-morph">Random Forest (Geometry Morph 26D)</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">Scalar Field:</span>
+              <select class="select-input" id="studio-select-field">
+                <option value="velocity_magnitude" selected>Velocity Magnitude |U| [m/s]</option>
+                <option value="velocity_u">Velocity Component Ux [m/s]</option>
+                <option value="velocity_v">Velocity Component Uy [m/s]</option>
+                <option value="tke">Turbulent Kinetic Energy (TKE) [m²/s²]</option>
+              </select>
+            </div>
+            <span class="view-tag">🔒 Range Locked: 0.0 - 7.5 m/s</span>
+            <label style="font-size: 11.5px;"><input type="checkbox" id="chk-studio-mask" checked> Mask Solid</label>
+            <label style="font-size: 11.5px;"><input type="checkbox" id="chk-studio-sync" checked> Sync Cursor</label>
+          </div>
+
+          <div class="studio-live-readout" id="studio-readout-probe">
+            <span>Probe [X, Y]: <strong>62.5m, 61.0m</strong></span>
+            <span>CFD: <strong>4.82 m/s</strong></span>
+            <span>Surr: <strong>4.91 m/s</strong></span>
+            <span class="readout-delta">ΔU: <strong>+0.09 m/s</strong></span>
+          </div>
+        </div>
+
+        <!-- Synchronized 3-Panel Triplet -->
+        <div class="triplet-grid">
+          
+          <!-- Panel 1: CFD Reference -->
+          <div class="triplet-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span class="status-dot" style="background-color: #2563eb;"></span>
+                <span>CFD Reference</span>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <span class="panel-badge">OpenFOAM RANS</span>
+                <span class="panel-badge">65,408 cells</span>
+              </div>
+            </div>
+            <div class="panel-canvas-container" id="container-cfd">
+              <canvas id="canvas-cfd" class="triplet-canvas" width="400" height="400"></canvas>
+              <div class="crosshair-overlay" id="overlay-cfd">
+                <div class="crosshair-x"></div>
+                <div class="crosshair-y"></div>
+              </div>
+            </div>
+            <div class="panel-stats-bar">
+              <span>Mean: <strong>3.42 m/s</strong></span>
+              <span>Peak: <strong>7.18 m/s</strong></span>
+              <span>Div: <strong>1.2e-5</strong></span>
+            </div>
+            <div class="panel-colorbar">
+              <div class="panel-colorbar-bar" id="colorbar-cfd"></div>
+              <div class="panel-colorbar-labels">
+                <span>0.0 m/s</span>
+                <span>2.5</span>
+                <span>5.0</span>
+                <span>7.5+ m/s</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 2: Neural Surrogate -->
+          <div class="triplet-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span class="status-dot" style="background-color: #10b981;"></span>
+                <span>Neural Surrogate</span>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <span class="panel-badge">U-Net</span>
+                <span class="panel-badge">Inf: 14.2 ms</span>
+                <span class="panel-badge" style="background-color: #ecfdf5; color: #065f46; font-weight: 700;">Speedup: 840×</span>
+              </div>
+            </div>
+            <div class="panel-canvas-container" id="container-surrogate">
+              <canvas id="canvas-surrogate" class="triplet-canvas" width="400" height="400"></canvas>
+              <div class="crosshair-overlay" id="overlay-surrogate">
+                <div class="crosshair-x"></div>
+                <div class="crosshair-y"></div>
+              </div>
+            </div>
+            <div class="panel-stats-bar">
+              <span>Mean: <strong>3.39 m/s</strong></span>
+              <span>Peak: <strong>6.94 m/s</strong></span>
+              <span>CosSim: <strong>0.954</strong></span>
+            </div>
+            <div class="panel-colorbar">
+              <div class="panel-colorbar-bar" id="colorbar-surrogate"></div>
+              <div class="panel-colorbar-labels">
+                <span>0.0 m/s</span>
+                <span>2.5</span>
+                <span>5.0</span>
+                <span>7.5+ m/s</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel 3: Spatial Error Residual -->
+          <div class="triplet-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span class="status-dot" style="background-color: #ef4444;"></span>
+                <span>Spatial Error Residual (|ΔU|)</span>
+              </div>
+              <span class="panel-badge" style="color: #b91c1c; font-weight: 600;">Peak: 0.892 m/s</span>
+            </div>
+            <div class="panel-canvas-container" id="container-residual">
+              <canvas id="canvas-residual" class="triplet-canvas" width="400" height="400"></canvas>
+              <div class="crosshair-overlay" id="overlay-residual">
+                <div class="crosshair-x"></div>
+                <div class="crosshair-y"></div>
+              </div>
+            </div>
+            <div class="panel-stats-bar">
+              <span>Global MAE: <strong id="stat-panel-mae">0.142</strong></span>
+              <span>Peak Local Δ: <strong>0.892</strong></span>
+              <span>R²: <strong>0.988</strong></span>
+            </div>
+            <div class="panel-colorbar">
+              <div class="panel-colorbar-bar" id="colorbar-residual"></div>
+              <div class="panel-colorbar-labels">
+                <span>0.0 m/s (Exact)</span>
+                <span>0.25</span>
+                <span>0.50</span>
+                <span>0.75</span>
+                <span>1.0+ m/s</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Studio Bottom Analytics (3 Columns) -->
+        <div class="analytics-drawer">
+          
+          <!-- Column 1: Quantitative Error Matrix -->
+          <div class="drawer-card">
+            <h4>Quantitative Error Matrix</h4>
+            <p class="drawer-subtitle">Layout #042 Staggered Canyon Block Evaluation</p>
+
+            <div class="matrix-row">
+              <span class="matrix-label">Field MAE:</span>
+              <span class="matrix-val" id="matrix-mae">0.142 m/s</span>
+            </div>
+            <div class="matrix-row">
+              <span class="matrix-label">Field RMSE:</span>
+              <span class="matrix-val" id="matrix-rmse">0.218 m/s</span>
+            </div>
+            <div class="matrix-row">
+              <span class="matrix-label">Normalized RMSE (NRMSE):</span>
+              <span class="matrix-val" id="matrix-nrmse">3.04%</span>
+            </div>
+            <div class="matrix-row">
+              <span class="matrix-label">Peak Local |ΔU|:</span>
+              <span class="matrix-val" id="matrix-peak">0.892 m/s</span>
+            </div>
+            <div class="matrix-row">
+              <span class="matrix-label">Valid Fluid Cells:</span>
+              <span class="matrix-val" id="matrix-fluid-cells">14,358 / 16,384</span>
+            </div>
+            <div class="matrix-row">
+              <span class="matrix-label">Confidence Interval (95%):</span>
+              <span class="matrix-val">±0.038 m/s</span>
+            </div>
+          </div>
+
+          <!-- Column 2: Canyon Centerline Transect Chart -->
+          <div class="drawer-card">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <h4>Canyon Centerline Transect</h4>
+              <span style="font-size: 10.5px; color: var(--text-muted);">Sampling Line: Y = 50.0m</span>
+            </div>
+            <p class="drawer-subtitle">Centerline cut through canyon gap (200 regular samples)</p>
+
+            <div class="transect-chart-container">
+              <svg id="transect-svg" class="transect-svg" viewBox="0 0 340 130"></svg>
+            </div>
+
+            <div class="transect-callout" id="transect-callout">
+              <span>Max Divergence: <strong>0.32 m/s @ X=82.4m</strong></span>
+              <span>Canyon Jet Match: <strong>96.1%</strong></span>
+            </div>
+          </div>
+
+          <!-- Column 3: Scientific Protocol -->
+          <div class="drawer-card">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+              <h4>Scientific Protocol</h4>
+              <span class="badge badge-split">Zero-Leakage Test</span>
+            </div>
+
+            <div class="protocol-list">
+              <div class="protocol-item">
+                <strong>1. Boundary-layer attenuation:</strong> High-frequency shear gradient attenuation observed in deep street canyons (underestimation up to 9.2%).
+              </div>
+              <div class="protocol-item">
+                <strong>2. Zero-leakage verification:</strong> Layout #042 belongs to strictly held-out Family D with no geometry or wake overlap in training splits.
+              </div>
+              <div class="protocol-item">
+                <strong>3. Physical Assumptions:</strong> Incompressible isothermal 2D steady slice; thermal buoyancy and roof aerodynamic drag deactivated.
+              </div>
+            </div>
+
+            <div class="protocol-ref">
+              <span>Ref: <em>doi:10.1016/j.jweia.2024.105...</em></span>
+              <button class="btn btn-secondary btn-sm" onclick="alert('Citation:\nNazarian et al. (2025). UrbanTALES: High-resolution urban microclimate aerodynamic LES dataset. BAMS.')">Cite</button>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ====================================================================
+       New Experiment Modal
+       ==================================================================== -->
+  <div class="modal-overlay" id="new-exp-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Launch New Neural Surrogate Experiment</h3>
+        <button class="modal-close" id="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Model Architecture:</label>
+          <select class="form-input" id="exp-arch">
+            <option value="CompactUNet">Compact U-Net (ResBlock-4)</option>
+            <option value="CompactCNN">Compact Dilated CNN</option>
+            <option value="RandomForest">Random Forest Regressor (26 Morphometric Features)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Training Epochs:</label>
+          <input type="number" class="form-input" id="exp-epochs" value="50" min="5" max="1000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Learning Rate:</label>
+          <input type="number" class="form-input" id="exp-lr" value="0.001" step="0.0005">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Holdout Partition (Zero-Leakage):</label>
+          <input type="text" class="form-input" value="Family-D (Idealized Staggered Canyons)" disabled>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-modal">Cancel</button>
+        <button class="btn btn-primary" id="btn-submit-exp">Start Training Job</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Entry Script -->
+  <script src="/static/app.js"></script>
+</body>
+</html>
