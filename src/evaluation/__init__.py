@@ -15,7 +15,12 @@ from src.evaluation.metrics import (
     field_max_abs_error,
 )
 from src.evaluation.evaluator import SurrogateEvaluator, EvaluationSummary
-from src.evaluation.plotting import plot_prediction_comparison
+from src.evaluation.plotting import (
+    plot_prediction_comparison,
+    plot_field_triplet,
+    plot_field_quad,
+    plot_single_field,
+)
 
 __all__ = [
     "compute_field_mae",
@@ -33,4 +38,7 @@ __all__ = [
     "SurrogateEvaluator",
     "EvaluationSummary",
     "plot_prediction_comparison",
+    "plot_field_triplet",
+    "plot_field_quad",
+    "plot_single_field",
 ]
