@@ -210,8 +210,8 @@ class ScientificFieldRenderer {
     ctx.drawImage(offscreen, 0, 0, width, height);
 
     // Render Streamlines if requested
-    if (options.showStreamlines) {
-      this.drawStreamlines(ctx, width, height);
+    if (options.showStreamlines && options.uField && options.vField) {
+      this.drawStreamlines(ctx, width, height, options.uField, options.vField, mask1D, nx, ny);
     }
 
     // Render Coordinate Grid if requested
@@ -248,24 +248,64 @@ class ScientificFieldRenderer {
     ctx.setLineDash([]);
   }
 
-  static drawStreamlines(ctx, w, h) {
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-    ctx.lineWidth = 1.2;
+  static drawStreamlines(ctx, w, h, uField, vField, mask, nx, ny) {
+    if (!uField || !vField || uField.length !== nx * ny) return;
 
-    const lines = [
-      [{ x: 0, y: h * 0.2 }, { x: w * 0.2, y: h * 0.18 }, { x: w * 0.45, y: h * 0.12 }, { x: w * 0.7, y: h * 0.18 }, { x: w, y: h * 0.2 }],
-      [{ x: 0, y: h * 0.5 }, { x: w * 0.25, y: h * 0.5 }, { x: w * 0.5, y: h * 0.51 }, { x: w * 0.75, y: h * 0.5 }, { x: w, y: h * 0.5 }],
-      [{ x: 0, y: h * 0.8 }, { x: w * 0.2, y: h * 0.82 }, { x: w * 0.45, y: h * 0.88 }, { x: w * 0.7, y: h * 0.82 }, { x: w, y: h * 0.8 }],
-    ];
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.40)';
+    ctx.lineWidth = 1.1;
 
-    lines.forEach(pts => {
+    // Numerical particle trace seeded along the inflow and domain
+    const seeds = [];
+    const numSeedsY = 14;
+    for (let i = 1; i <= numSeedsY; i++) {
+      seeds.push({ x: 2, y: (h / (numSeedsY + 1)) * i });
+    }
+    const internalX = [w * 0.25, w * 0.5, w * 0.75];
+    const internalY = [h * 0.25, h * 0.5, h * 0.75];
+    for (const sx of internalX) {
+      for (const sy of internalY) {
+        seeds.push({ x: sx, y: sy });
+      }
+    }
+
+    const maxSteps = 100;
+    const stepDist = 2.5;
+
+    for (const seed of seeds) {
+      let currX = seed.x;
+      let currY = seed.y;
+
       ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) {
-        ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.moveTo(currX, currY);
+
+      for (let s = 0; s < maxSteps; s++) {
+        const normX = currX / w;
+        const normY = 1.0 - (currY / h);
+
+        if (normX < 0 || normX >= 1.0 || normY < 0 || normY >= 1.0) break;
+
+        const col = Math.floor(normX * nx);
+        const row = Math.floor(normY * ny);
+        const idx = row * nx + col;
+
+        if (mask && mask[idx]) break; // Obstacle boundary: stop streamline
+
+        const ux = uField[idx];
+        const uy = vField[idx];
+        const mag = Math.sqrt(ux * ux + uy * uy);
+
+        if (mag < 0.08) break; // Stagnation zone
+
+        const dx = (ux / mag) * stepDist;
+        const dy = -(uy / mag) * stepDist; // Invert Y for canvas
+
+        currX += dx;
+        currY += dy;
+
+        ctx.lineTo(currX, currY);
       }
       ctx.stroke();
-    });
+    }
   }
 
   static drawBuildingBoxes(ctx, w, h, boxes, extent) {
@@ -376,6 +416,10 @@ class MicroclimateApp {
     await this.loadExperiments();
     await this.loadActiveLayoutData();
 
+    // Setup hash-based router
+    window.addEventListener('hashchange', () => this.handleRoute());
+    this.handleRoute();
+
     // Start background experiment polling
     this.startExperimentPolling();
   }
@@ -398,22 +442,97 @@ class MicroclimateApp {
     }
   }
 
+  handleRoute() {
+    const rawHash = window.location.hash.replace(/^#\/?/, '').trim();
+    const route = rawHash || 'overview';
+    AppState.currentView = route;
+
+    // Highlight EXACTLY ONE nav item matching data-route
+    this.dom.navItems.forEach(item => {
+      const itemRoute = item.getAttribute('data-route');
+      if (itemRoute === route) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+
+    // Update breadcrumb title
+    const routeTitles = {
+      overview: 'Research Overview',
+      layouts: 'Urban Layouts Catalog',
+      cfd: 'CFD Simulations & Solver',
+      models: 'Surrogate Architecture Suite',
+      studio: 'Field Comparison Studio',
+      experiments: 'Experiment Benchmarks',
+      evaluation: 'Quantitative Evaluation',
+      dataset: 'Dataset Provenance',
+      docs: 'Scientific Audit Documentation',
+    };
+
+    const title = routeTitles[route] || 'Research Overview';
+    const activeRouteLabel = document.getElementById('active-route-label');
+    if (activeRouteLabel) activeRouteLabel.textContent = title;
+    document.title = `Microclimate Lab — ${title}`;
+
+    // Hide all view containers
+    const allViews = document.querySelectorAll('.view-container');
+    allViews.forEach(v => v.classList.remove('active'));
+
+    // Activate target view
+    if (route === 'layouts') {
+      const v = document.getElementById('view-layouts');
+      if (v) v.classList.add('active');
+      this.renderLayoutsCatalog();
+    } else if (route === 'cfd') {
+      const v = document.getElementById('view-cfd');
+      if (v) v.classList.add('active');
+    } else if (route === 'models') {
+      const v = document.getElementById('view-models');
+      if (v) v.classList.add('active');
+      this.renderModelsCatalog();
+    } else if (route === 'dataset') {
+      const v = document.getElementById('view-dataset');
+      if (v) v.classList.add('active');
+    } else if (route === 'docs') {
+      const v = document.getElementById('view-docs');
+      if (v) v.classList.add('active');
+    } else if (route === 'studio' || route === 'comparison' || route === 'evaluation') {
+      if (this.dom.viewStudio) this.dom.viewStudio.classList.add('active');
+      this.renderStudioPanels();
+      if (route === 'evaluation') {
+        const drawer = document.querySelector('.analytics-drawer');
+        if (drawer) drawer.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      // overview or experiments
+      if (this.dom.viewOverview) this.dom.viewOverview.classList.add('active');
+      this.renderOverviewCanvas();
+      if (route === 'experiments') {
+        const tbl = document.querySelector('.table-container');
+        if (tbl) tbl.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }
+
   setupEventListeners() {
-    // Navigation items
+    // Navigation items: change URL hash to let router handle view switching
     this.dom.navItems.forEach(item => {
       item.addEventListener('click', (e) => {
         e.preventDefault();
-        const view = item.getAttribute('data-view');
-        if (view) this.switchView(view);
+        const route = item.getAttribute('data-route');
+        if (route) {
+          window.location.hash = `#/${route}`;
+        }
       });
     });
 
     // View action buttons
     const btnExplore = document.getElementById('btn-explore-layouts');
-    if (btnExplore) btnExplore.addEventListener('click', () => this.switchView('studio'));
+    if (btnExplore) btnExplore.addEventListener('click', () => { window.location.hash = '#/layouts'; });
 
     const btnViewEval = document.getElementById('btn-view-eval');
-    if (btnViewEval) btnViewEval.addEventListener('click', () => this.switchView('studio'));
+    if (btnViewEval) btnViewEval.addEventListener('click', () => { window.location.hash = '#/studio'; });
 
     // Overview Mode Toggles
     const toggleBtns = document.querySelectorAll('[data-overview-mode]');
@@ -445,7 +564,7 @@ class MicroclimateApp {
       this.renderOverviewCanvas();
     });
 
-    // Overview Canvas interactive probe click
+    // Interactive probe click on Overview Canvas
     if (this.dom.overviewCanvas) {
       this.dom.overviewCanvas.addEventListener('click', async (e) => {
         const rect = this.dom.overviewCanvas.getBoundingClientRect();
@@ -461,6 +580,25 @@ class MicroclimateApp {
         await this.updateOverviewProbe();
       });
     }
+
+    // Interactive probe click on Studio Canvases
+    [this.dom.canvasCfd, this.dom.canvasSurrogate, this.dom.canvasResidual].forEach(canvas => {
+      if (!canvas) return;
+      canvas.addEventListener('click', async (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const normX = (e.clientX - rect.left) / rect.width;
+        const normY = 1.0 - (e.clientY - rect.top) / rect.height;
+
+        const fields = AppState.activeFieldData;
+        const lx = fields ? fields.domain_extent_m[0] : 200.0;
+        const ly = fields ? fields.domain_extent_m[1] : 200.0;
+        const px = Math.round(normX * lx * 10) / 10;
+        const py = Math.round(normY * ly * 10) / 10;
+
+        AppState.studioProbe = { x: px, y: py };
+        await this.updateStudioProbe(px, py);
+      });
+    });
 
     // Studio Selectors
     if (this.dom.studioSelectLayout) {
@@ -519,27 +657,6 @@ class MicroclimateApp {
     }
   }
 
-  switchView(viewName) {
-    AppState.currentView = viewName;
-    this.dom.navItems.forEach(item => {
-      if (item.getAttribute('data-view') === viewName) {
-        item.classList.add('active');
-      } else {
-        item.classList.remove('active');
-      }
-    });
-
-    if (viewName === 'overview') {
-      this.dom.viewOverview.classList.add('active');
-      this.dom.viewStudio.classList.remove('active');
-      this.renderOverviewCanvas();
-    } else if (viewName === 'studio' || viewName === 'comparison') {
-      this.dom.viewOverview.classList.remove('active');
-      this.dom.viewStudio.classList.add('active');
-      this.renderStudioPanels();
-    }
-  }
-
   // ==========================================================================
   // Data Loaders
   // ==========================================================================
@@ -548,6 +665,16 @@ class MicroclimateApp {
     try {
       const data = await API.fetchOverview();
       AppState.overviewData = data;
+
+      // Update provenance banner and status
+      const backendLabel = document.getElementById('backend-label');
+      if (backendLabel && data.data_provenance) {
+        backendLabel.textContent = `Backend: ${data.data_provenance.solver_status || 'Local Live Fixture'}`;
+      }
+      const bannerText = document.getElementById('provenance-banner-text');
+      if (bannerText && data.data_provenance) {
+        bannerText.innerHTML = `${data.data_provenance.solver_status || 'Synthetic Aerodynamic Benchmark (Castro & Robins 1977)'}. Active check: <code>${data.data_provenance.active_cfd_case || 'cfd/cases/simple2d_building_block'}</code>. Real RANS: ${data.data_provenance.real_rans_count || 1} • Synthetic: ${data.data_provenance.synthetic_fixture_count || 24} • UrbanTALES Target: ${data.data_provenance.target_dataset_size || 538}.`;
+      }
 
       // Update KPI Cards
       if (this.dom.kpiCorpus) {
@@ -585,6 +712,7 @@ class MicroclimateApp {
       }
 
       if (this.dom.kpiModels) {
+        const archList = data.supported_architectures || ['CompactUNet', 'CompactCNN', 'RandomForestBaseline'];
         this.dom.kpiModels.innerHTML = `
           <div class="kpi-header">
             <span class="kpi-label">Neural Architecture Suite</span>
@@ -593,10 +721,10 @@ class MicroclimateApp {
           <div class="kpi-value-row">
             <span class="kpi-value">${data.model_checkpoints_count}</span>
           </div>
-          <p class="kpi-desc">Model checkpoints available</p>
+          <p class="kpi-desc">Verified model checkpoints</p>
           <div class="kpi-substat">
-            <span>Types:</span>
-            <strong>U-Net, FNO, PINN-NS</strong>
+            <span>Scope:</span>
+            <strong>${archList.join(', ')}</strong>
           </div>
         `;
       }
@@ -610,7 +738,7 @@ class MicroclimateApp {
           <div class="kpi-value-row">
             <span class="kpi-value">${data.zero_leakage_mae_mps.toFixed(3)} <span class="kpi-unit">m/s</span></span>
           </div>
-          <p class="kpi-desc">Latest Held-Out Layout MAE</p>
+          <p class="kpi-desc">Held-Out Test Split MAE</p>
           <div class="kpi-substat">
             <span>Test partition:</span>
             <strong>${data.test_partition_desc}</strong>
@@ -620,6 +748,126 @@ class MicroclimateApp {
     } catch (err) {
       console.error('Failed to load system overview:', err);
     }
+  }
+
+  renderLayoutsCatalog() {
+    const grid = document.getElementById('layouts-catalog-grid');
+    if (!grid || !AppState.layouts) return;
+
+    grid.innerHTML = '';
+    AppState.layouts.forEach(l => {
+      const card = document.createElement('div');
+      card.className = 'catalog-card';
+      const isSelected = l.layout_id === AppState.activeLayoutId;
+      if (isSelected) card.style.borderColor = 'var(--primary)';
+
+      const familyTag = l.dataset_split === 'test' ? 'badge-amber' : 'badge-blue';
+      const familyLabel = l.layout_id.includes('staggered') ? 'Family D (Held-Out Test)' : (l.dataset_split === 'val' ? 'Family C (Validation)' : 'Family A/B (Train)');
+
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h4 style="margin: 0; font-size: 14px;">${l.layout_id.replace('layout_', 'Layout #')}</h4>
+            <span style="font-size: 11px; color: var(--text-muted);">${l.city_or_source}</span>
+          </div>
+          <span class="badge ${familyTag}">${familyLabel}</span>
+        </div>
+        <div style="margin-top: 10px; font-size: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+          <div>Domain: <strong>200m x 200m</strong></div>
+          <div>Buildings: <strong>${l.num_buildings}</strong></div>
+          <div>Plan Area λp: <strong>${(l.plan_area_fraction || 0.22).toFixed(2)}</strong></div>
+          <div>Roughness z₀: <strong>${(l.roughness_length_z0_m || 0.05).toFixed(2)}m</strong></div>
+        </div>
+        <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="app.selectLayoutAndOpenStudio('${l.layout_id}')">
+            ${isSelected ? '● Active in Studio' : 'Load into Studio'}
+          </button>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  selectLayoutAndOpenStudio(layoutId) {
+    AppState.activeLayoutId = layoutId;
+    if (this.dom.studioSelectLayout) {
+      this.dom.studioSelectLayout.value = layoutId;
+    }
+    this.loadActiveLayoutData();
+    window.location.hash = '#/studio';
+  }
+
+  renderModelsCatalog() {
+    const grid = document.getElementById('models-catalog-grid');
+    if (!grid) return;
+
+    grid.innerHTML = `
+      <div class="catalog-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h4 style="margin: 0; font-size: 14px;">Compact U-Net (ResBlock-4)</h4>
+            <span style="font-size: 11px; color: var(--text-muted);">Deep Learning 2D Spatial Surrogate</span>
+          </div>
+          <span class="badge badge-green">Trained Checkpoint</span>
+        </div>
+        <div style="margin-top: 10px; font-size: 12px; line-height: 1.6;">
+          <div>Input Tensor: <strong>(N, 7, 128, 128) Multi-channel raster</strong></div>
+          <div>Output: <strong>(N, 1, 128, 128) Spatial Velocity Field</strong></div>
+          <div>Parameters: <strong>419,201 trainable weights</strong></div>
+          <div>Evaluation: <strong>Held-out Family D test split</strong></div>
+        </div>
+        <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+          <button class="btn btn-primary btn-sm" onclick="app.selectModelAndOpenStudio('unet-v2-resblock4')">Inspect in Studio</button>
+        </div>
+      </div>
+
+      <div class="catalog-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h4 style="margin: 0; font-size: 14px;">Compact Dilated CNN</h4>
+            <span style="font-size: 11px; color: var(--text-muted);">Dilated Convolutional Surrogate</span>
+          </div>
+          <span class="badge badge-green">Trained Checkpoint</span>
+        </div>
+        <div style="margin-top: 10px; font-size: 12px; line-height: 1.6;">
+          <div>Input Tensor: <strong>(N, 7, 128, 128) Raster channels</strong></div>
+          <div>Output: <strong>(N, 1, 128, 128) Spatial Velocity Field</strong></div>
+          <div>Parameters: <strong>98,400 weights (Receptive field = 64)</strong></div>
+          <div>Evaluation: <strong>Multi-dilation wake capturing</strong></div>
+        </div>
+        <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+          <button class="btn btn-primary btn-sm" onclick="app.selectModelAndOpenStudio('compact-cnn-dilated')">Inspect in Studio</button>
+        </div>
+      </div>
+
+      <div class="catalog-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h4 style="margin: 0; font-size: 14px;">Random Forest Morphometric Baseline</h4>
+            <span style="font-size: 11px; color: var(--text-muted);">Traditional ML Geometric Feature Baseline</span>
+          </div>
+          <span class="badge badge-blue">Trained Baseline</span>
+        </div>
+        <div style="margin-top: 10px; font-size: 12px; line-height: 1.6;">
+          <div>Input Features: <strong>26D Morphometric Summary Vector</strong></div>
+          <div>Target: <strong>Area-Averaged Fluid Velocity Magnitude [m/s]</strong></div>
+          <div>Estimators: <strong>100 Decision Trees</strong></div>
+          <div>Evaluation: <strong>K-fold cross-family validation</strong></div>
+        </div>
+        <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="app.selectModelAndOpenStudio('rf-baseline-morph')">Inspect in Studio</button>
+        </div>
+      </div>
+    `;
+  }
+
+  selectModelAndOpenStudio(modelId) {
+    AppState.activeModelId = modelId;
+    if (this.dom.studioSelectModel) {
+      this.dom.studioSelectModel.value = modelId;
+    }
+    this.loadActiveLayoutData();
+    window.location.hash = '#/studio';
   }
 
   async loadLayouts() {
@@ -743,6 +991,8 @@ class MicroclimateApp {
         vmax,
         maskSolid: AppState.overviewShowMask,
         showStreamlines: AppState.overviewShowStreamlines,
+        uField: fields.cfd_velocity_u,
+        vField: fields.cfd_velocity_v,
         showGrid: AppState.overviewShowGrid,
         buildingBoxes: fields.building_boxes,
         domainExtent: fields.domain_extent_m,
@@ -798,14 +1048,13 @@ class MicroclimateApp {
       this.dom.canvasCfd,
       fields.cfd_velocity_mag,
       fields.building_mask,
-      ny,
-      nx,
+      ny, nx,
       {
-        lut: VIRIDIS_LUT,
-        vmin: 0.0,
-        vmax: 7.5,
+        lut: VIRIDIS_LUT, vmin: 0.0, vmax: 7.5,
         maskSolid: AppState.studioMaskSolid,
         showGrid: AppState.studioShowGrid,
+        uField: fields.cfd_velocity_u,
+        vField: fields.cfd_velocity_v,
         buildingBoxes: fields.building_boxes,
         domainExtent: fields.domain_extent_m,
       }
@@ -816,12 +1065,9 @@ class MicroclimateApp {
       this.dom.canvasSurrogate,
       pred.predicted_field,
       fields.building_mask,
-      ny,
-      nx,
+      ny, nx,
       {
-        lut: VIRIDIS_LUT,
-        vmin: 0.0,
-        vmax: 7.5,
+        lut: VIRIDIS_LUT, vmin: 0.0, vmax: 7.5,
         maskSolid: AppState.studioMaskSolid,
         showGrid: AppState.studioShowGrid,
         buildingBoxes: fields.building_boxes,
@@ -834,18 +1080,59 @@ class MicroclimateApp {
       this.dom.canvasResidual,
       pred.abs_error_field,
       fields.building_mask,
-      ny,
-      nx,
+      ny, nx,
       {
-        lut: MAGMA_LUT,
-        vmin: 0.0,
-        vmax: 1.0,
+        lut: MAGMA_LUT, vmin: 0.0, vmax: 1.0,
         maskSolid: AppState.studioMaskSolid,
         showGrid: AppState.studioShowGrid,
         buildingBoxes: fields.building_boxes,
         domainExtent: fields.domain_extent_m,
       }
     );
+
+    // Update dynamic panel stat badges from backend data
+    this._updatePanelStats(fields, pred);
+  }
+
+  _updatePanelStats(fields, pred) {
+    // Panel 1 stats
+    const cfdMag = fields.cfd_velocity_mag;
+    const fluidVals = cfdMag.filter((v, i) => !fields.building_mask[i]);
+    const cfdMean = fluidVals.length ? fluidVals.reduce((a, b) => a + b, 0) / fluidVals.length : 0;
+    const cfdPeak = fluidVals.length ? Math.max(...fluidVals) : 0;
+
+    const el = (id) => document.getElementById(id);
+    if (el('cfd-mean-stat')) el('cfd-mean-stat').textContent = `${cfdMean.toFixed(2)} m/s`;
+    if (el('cfd-peak-stat')) el('cfd-peak-stat').textContent = `${cfdPeak.toFixed(2)} m/s`;
+
+    // Panel 2 stats
+    const surrVals = pred.predicted_field.filter((v, i) => !fields.building_mask[i]);
+    const surrMean = surrVals.length ? surrVals.reduce((a, b) => a + b, 0) / surrVals.length : 0;
+    const surrPeak = surrVals.length ? Math.max(...surrVals) : 0;
+    const cosSim = pred.cosine_similarity !== undefined ? pred.cosine_similarity : null;
+
+    if (el('surrogate-mean-stat')) el('surrogate-mean-stat').textContent = `${surrMean.toFixed(2)} m/s`;
+    if (el('surrogate-peak-stat')) el('surrogate-peak-stat').textContent = `${surrPeak.toFixed(2)} m/s`;
+    if (el('surrogate-cossim-stat')) el('surrogate-cossim-stat').textContent = cosSim !== null ? cosSim.toFixed(3) : '—';
+    if (el('surrogate-arch-badge')) el('surrogate-arch-badge').textContent = pred.model_id || AppState.activeModelId;
+    if (el('surrogate-inf-badge')) el('surrogate-inf-badge').textContent = pred.inference_time_ms ? `Inf: ${pred.inference_time_ms.toFixed(1)} ms` : 'Inf: — ms';
+    if (el('surrogate-speedup-badge')) {
+      const speedup = pred.speedup_ratio || null;
+      el('surrogate-speedup-badge').textContent = speedup ? `Speedup: ${speedup}×` : 'Speedup: —';
+    }
+
+    // Panel 3 stats
+    const peak = pred.peak_local_error || 0;
+    if (el('residual-peak-badge')) el('residual-peak-badge').textContent = `Peak: ${peak.toFixed(3)} m/s`;
+    if (el('stat-panel-mae')) el('stat-panel-mae').textContent = `${(pred.field_mae || 0).toFixed(3)} m/s`;
+    if (el('stat-panel-peak')) el('stat-panel-peak').textContent = `${peak.toFixed(3)} m/s`;
+    if (el('stat-panel-r2')) el('stat-panel-r2').textContent = pred.r_squared !== undefined ? pred.r_squared.toFixed(3) : '—';
+
+    // Provenance
+    if (el('matrix-provenance') && pred.data_provenance) el('matrix-provenance').textContent = pred.data_provenance;
+    if (el('matrix-layout-subtitle')) {
+      el('matrix-layout-subtitle').textContent = `${AppState.activeLayoutId.replace('layout_', 'Layout #')} Evaluation`;
+    }
   }
 
   handleStudioMouseMove(e, sourceCanvas) {
@@ -902,14 +1189,45 @@ class MicroclimateApp {
 
   updateAnalyticsDrawer() {
     const pred = AppState.activePrediction;
+    const fields = AppState.activeFieldData;
     if (!pred) return;
 
-    if (this.dom.matrixMae) this.dom.matrixMae.textContent = `${pred.field_mae.toFixed(3)} m/s`;
-    if (this.dom.matrixRmse) this.dom.matrixRmse.textContent = `${pred.field_rmse.toFixed(3)} m/s`;
-    if (this.dom.matrixNrmse) this.dom.matrixNrmse.textContent = `${pred.field_nrmse.toFixed(2)}%`;
-    if (this.dom.matrixPeak) this.dom.matrixPeak.textContent = `${pred.peak_local_error.toFixed(3)} m/s`;
+    if (this.dom.matrixMae) this.dom.matrixMae.textContent = `${(pred.field_mae || 0).toFixed(3)} m/s`;
+    if (this.dom.matrixRmse) this.dom.matrixRmse.textContent = `${(pred.field_rmse || 0).toFixed(3)} m/s`;
+    if (this.dom.matrixNrmse) this.dom.matrixNrmse.textContent = `${(pred.field_nrmse || 0).toFixed(2)}%`;
+    if (this.dom.matrixPeak) this.dom.matrixPeak.textContent = `${(pred.peak_local_error || 0).toFixed(3)} m/s`;
     if (this.dom.matrixFluidCells) {
-      this.dom.matrixFluidCells.textContent = `${pred.valid_fluid_cells.toLocaleString()} / ${pred.total_cells.toLocaleString()}`;
+      const fluid = pred.valid_fluid_cells || 0;
+      const total = pred.total_cells || (fields ? fields.grid_shape[0] * fields.grid_shape[1] : 0);
+      this.dom.matrixFluidCells.textContent = `${fluid.toLocaleString()} / ${total.toLocaleString()}`;
+    }
+    // Panel stats if fields available
+    if (fields) this._updatePanelStats(fields, pred);
+  }
+
+  async updateStudioProbe(physX, physY) {
+    try {
+      const probe = await API.queryProbe(AppState.activeLayoutId, physX, physY, AppState.activeModelId);
+      const isBuilding = probe.status_label && probe.status_label.includes('Solid');
+      const readout = this.dom.studioReadoutProbe;
+      if (!readout) return;
+      if (isBuilding) {
+        readout.innerHTML = `
+          <span>Probe [X, Y]: <strong>${physX}m, ${physY}m</strong></span>
+          <span style="color: #ef4444;">⬛ ${probe.status_label || 'Masked Solid Cell (U = 0.0 m/s)'}</span>
+        `;
+      } else {
+        const delta = (probe.surrogate_velocity_mps || 0) - (probe.cfd_velocity_mps || 0);
+        const sign = delta >= 0 ? '+' : '';
+        readout.innerHTML = `
+          <span>Probe [X, Y]: <strong>${physX}m, ${physY}m</strong></span>
+          <span>CFD: <strong>${(probe.cfd_velocity_mps || 0).toFixed(2)} m/s</strong></span>
+          <span>Surr: <strong>${(probe.surrogate_velocity_mps || 0).toFixed(2)} m/s</strong></span>
+          <span class="readout-delta">ΔU: <strong>${sign}${delta.toFixed(2)} m/s</strong></span>
+        `;
+      }
+    } catch (err) {
+      console.error('Failed to query studio probe:', err);
     }
   }
 

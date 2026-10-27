@@ -47,25 +47,31 @@ def get_system_overview():
     best_mae = min(completed_maes) if completed_maes else 0.142
 
     distinct_families = len(set(s.metadata.layout_family.value for s in service.samples.values()))
+    actual_count = len(service.samples)
 
     return SystemOverview(
         domain="Computational Wind Engineering",
         active_dataset="UrbanFlow-2D v1.4",
         dataset_version="v0.9.4-research",
         stack_info=f"PyTorch 2.3 ({service.device}) • OpenFOAM-v2312",
-        geometric_corpus_count=128,  # Total corpus target
+        geometric_corpus_count=actual_count,
+        corpus_target_total=538,
+        corpus_provenance="SYNTHETIC_BENCHMARK_COHORT",
+        corpus_status_desc=f"{actual_count} Synthetic Benchmarks Loaded • Target UrbanTALES: 538 Layouts",
         topological_families_count=max(4, distinct_families),
-        ground_truth_solvers_count=96,
-        total_solvers_target=128,
+        ground_truth_solvers_count=actual_count,
+        solvers_status_desc="1 OpenFOAM Case Setup • 24 Analytical Flow Benchmarks",
+        total_solvers_target=538,
         mesh_resolution_desc="65,536 Cartesian cells",
-        model_checkpoints_count=len(service.models) + 3,
-        model_architectures=["U-Net (ResBlock-4)", "FNO-2D", "PINN-NS", "Random Forest 26D"],
+        model_checkpoints_count=len(service.models),
+        model_architectures=["U-Net (ResBlock-4)", "Dilated CNN 2D", "Random Forest 26D"],
         zero_leakage_mae_mps=best_mae,
         zero_leakage_change_pct=-18.4,
         test_partition_desc="Held-out Family D (Strict)",
         selected_layout_id="layout_042_staggered_canyon",
-        backend_status="Connected",
+        backend_status="Connected (Benchmark Fixture Mode)",
         device=str(service.device),
+        is_demonstration_fixture=True,
     )
 
 
