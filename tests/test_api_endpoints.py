@@ -29,7 +29,10 @@ def test_api_overview():
     assert data["domain"] == "Computational Wind Engineering"
     assert data["geometric_corpus_count"] >= 20
     assert data["topological_families_count"] >= 3
-    assert data["zero_leakage_mae_mps"] > 0.0
+    # P0: zero_leakage_mae_mps is None until an actual honest benchmark evaluation is performed
+    assert data["zero_leakage_mae_mps"] is None or isinstance(data["zero_leakage_mae_mps"], float)
+    assert data["ground_truth_solvers_count"] == 0
+    assert "data_provenance" in data
     assert "selected_layout_id" in data
 
 
@@ -85,8 +88,11 @@ def test_api_surrogate_predict():
     assert data["field_rmse"] >= data["field_mae"]
     assert data["field_nrmse"] > 0.0
     assert data["peak_local_error"] > 0.0
-    assert data["r2_score"] > 0.8
-    assert data["speedup_factor"] >= 100.0
+    assert "r2_score" in data
+    # Speedup is honest/unavailable without real OpenFOAM baseline measurement
+    assert data["speedup_factor"] is None
+    assert data["is_trained_checkpoint"] is False
+    assert data["prediction_type"] == "spatially_resolved_neural"
     assert len(data["predicted_field"]) == 128 * 128
     assert len(data["abs_error_field"]) == 128 * 128
 
@@ -161,7 +167,7 @@ def test_api_experiments_list_and_run():
     resp = client.get("/api/experiments")
     assert resp.status_code == 200
     exps = resp.json()
-    assert len(exps) >= 4
+    assert len(exps) >= 3
 
     # Run new experiment in background
     run_payload = {

@@ -10,6 +10,9 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse
 
 from src.api.schemas import (
+    CheckpointInventory,
+    CFDInventory,
+    DatasetInventory,
     ExperimentRecord,
     ExperimentRunRequest,
     LayoutDetail,
@@ -22,6 +25,8 @@ from src.api.schemas import (
     SystemOverview,
     TransectQueryRequest,
     TransectQueryResponse,
+    UrbanTALESInventory,
+    UrbanTALESDatasetSummary,
 )
 from src.api.service import service
 
@@ -42,36 +47,45 @@ def get_health():
 @router.get("/overview", response_model=SystemOverview)
 def get_system_overview():
     """Aggregates high-level scientific metrics driving the research dashboard."""
-    # Find lowest held-out MAE among completed experiments
     completed_maes = [e["held_out_mae_mps"] for e in service.experiments if e.get("held_out_mae_mps") is not None]
-    best_mae = min(completed_maes) if completed_maes else 0.142
+    best_mae = min(completed_maes) if completed_maes else None
 
     distinct_families = len(set(s.metadata.layout_family.value for s in service.samples.values()))
     actual_count = len(service.samples)
 
+    provenance_info = {
+        "solver_status": "Synthetic Aerodynamic Benchmark (Castro & Robins 1977 formulation)",
+        "active_cfd_case": "cfd/cases/simple2d_building_block (unexecuted template)",
+        "real_rans_count": 0,
+        "synthetic_fixture_count": actual_count,
+        "target_dataset_size": 538,
+        "is_demonstration_fixture": True,
+    }
+
     return SystemOverview(
         domain="Computational Wind Engineering",
-        active_dataset="UrbanFlow-2D v1.4",
+        active_dataset="Synthetic Benchmark Corpus (In-Memory)",
         dataset_version="v0.9.4-research",
-        stack_info=f"PyTorch 2.3 ({service.device}) • OpenFOAM-v2312",
+        stack_info=f"PyTorch ({service.device}) • OpenFOAM Template (Unexecuted)",
         geometric_corpus_count=actual_count,
         corpus_target_total=538,
-        corpus_provenance="SYNTHETIC_BENCHMARK_COHORT",
-        corpus_status_desc=f"{actual_count} Synthetic Benchmarks Loaded • Target UrbanTALES: 538 Layouts",
-        topological_families_count=max(4, distinct_families),
-        ground_truth_solvers_count=actual_count,
-        solvers_status_desc="1 OpenFOAM Case Setup • 24 Analytical Flow Benchmarks",
+        corpus_provenance="SYNTHETIC_PROCEDURAL_FIXTURE",
+        corpus_status_desc=f"{actual_count} Synthetic Benchmarks Loaded • Target UrbanTALES: 538 Layouts (Not Loaded)",
+        topological_families_count=distinct_families,
+        ground_truth_solvers_count=0,
+        solvers_status_desc="0 Executed OpenFOAM Solutions • 24 Analytical Flow Benchmarks",
         total_solvers_target=538,
-        mesh_resolution_desc="65,536 Cartesian cells",
+        mesh_resolution_desc="16,384 Cartesian cells (128x128)",
         model_checkpoints_count=len(service.models),
-        model_architectures=["U-Net (ResBlock-4)", "Dilated CNN 2D", "Random Forest 26D"],
+        model_architectures=["CompactUNet (ResBlock-4)", "CompactCNN (Dilated-2D)", "Random Forest (26D Morphometric)"],
         zero_leakage_mae_mps=best_mae,
-        zero_leakage_change_pct=-18.4,
-        test_partition_desc="Held-out Family D (Strict)",
+        zero_leakage_change_pct=None,
+        test_partition_desc="Held-out Family D (Procedural Holdout)",
         selected_layout_id="layout_042_staggered_canyon",
-        backend_status="Connected (Benchmark Fixture Mode)",
+        backend_status="Connected (Synthetic Benchmark Mode)",
         device=str(service.device),
         is_demonstration_fixture=True,
+        data_provenance=provenance_info,
     )
 
 
@@ -84,6 +98,11 @@ def list_layouts():
         fluid_pct = float(np.sum(~mask) / mask.size) if hasattr(mask, "size") else 0.85
         is_held_out = "staggered" in lid.lower() or sample.metadata.layout_family.value == "idealized_staggered"
 
+        features = service.feature_extractor.extract(sample)
+        plan_area = float(features.plan_area_density_lambda_p)
+        b_count = int(features.building_count)
+        split = "test" if is_held_out else ("val" if "courtyard" in lid.lower() else "train")
+
         summaries.append(
             LayoutSummary(
                 layout_id=sample.layout_id,
@@ -95,8 +114,14 @@ def list_layouts():
                 inflow_speed_mps=sample.environment.inflow_speed_mps,
                 wind_direction_deg=sample.environment.wind_direction_deg,
                 is_held_out=is_held_out,
-                has_cfd_ground_truth=True,
+                has_cfd_ground_truth=False,
                 active_fluid_fraction=round(fluid_pct, 4),
+                data_provenance="SYNTHETIC_PROCEDURAL_FIXTURE",
+                provenance_label="Synthetic Procedural Fixture",
+                num_buildings=b_count,
+                plan_area_fraction=round(plan_area, 3),
+                roughness_length_z0_m=sample.environment.roughness_length_z0_m,
+                dataset_split=split,
             )
         )
     return summaries
@@ -133,6 +158,9 @@ def get_layout_detail(layout_id: str):
         geometric_features=feature_dict,
         buildings_count=int(features.building_count),
         building_heights=unique_h,
+        has_cfd_ground_truth=False,
+        data_provenance="SYNTHETIC_PROCEDURAL_FIXTURE",
+        provenance_label="Synthetic Aerodynamic Benchmark (Castro & Robins 1977 formulation)",
     )
 
 
@@ -182,6 +210,10 @@ def get_layout_fields(layout_id: str):
         cfd_tke=sample.targets.turbulent_kinetic_energy.flatten().tolist() if sample.targets.turbulent_kinetic_energy is not None else None,
         stats=stats,
         building_boxes=building_boxes,
+        has_cfd_ground_truth=False,
+        data_provenance="CANONICAL_AERODYNAMIC_BENCHMARK",
+        provenance_description="Analytical Aerodynamic Benchmark Reference Field (Castro & Robins 1977 formulation)",
+        has_velocity_components=True,
     )
 
 
@@ -197,6 +229,8 @@ def predict_surrogate(req: SurrogatePredictionRequest):
         return SurrogatePredictionResponse(**res)
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inference error: {str(e)}")
 
@@ -274,4 +308,91 @@ def export_triplet(layout_id: str, model_id: str = "unet-v2-resblock4"):
         path=str(fig_path),
         media_type="image/png",
         filename=f"microclimate_triplet_{layout_id}_{model_id}.png",
+    )
+
+
+# ============================================================================
+# Inventory Endpoints (P1)
+# ============================================================================
+
+@router.get("/inventory/datasets", response_model=DatasetInventory)
+def get_dataset_inventory():
+    """Returns a structured inventory of all loaded layouts, their provenance, and availability."""
+    return DatasetInventory(**service.get_dataset_inventory())
+
+
+@router.get("/inventory/checkpoints", response_model=CheckpointInventory)
+def get_checkpoint_inventory():
+    """Scans checkpoints/ directory and reports training status of each .pt file."""
+    return CheckpointInventory(**service.get_checkpoint_inventory())
+
+
+@router.get("/inventory/cfd", response_model=CFDInventory)
+def get_cfd_inventory():
+    """Reports available OpenFOAM case templates, solver availability, and pre-computed outputs."""
+    return CFDInventory(**service.get_cfd_inventory())
+
+
+@router.get("/inventory/urbantales", response_model=UrbanTALESInventory)
+def get_urbantales_inventory():
+    """Read-only inventory of the real UrbanTALES sample(s) shipped on disk.
+
+    Loads ``UA0625_d00`` (topology + vertical profile + geometry image) on
+    demand and reports honest provenance. This is geometry and a 1D vertical
+    profile only -- no 2D wind field is fabricated and no grid spacing is
+    assumed. The synthetic corpus and existing endpoints are untouched.
+    """
+    from src.data.ua0625 import default_ua0625_paths, load_ua0625_dataset
+
+    paths = default_ua0625_paths(Path(__file__).resolve().parent.parent.parent)
+    topo_path = paths["topology"]
+    profile_path = paths["profile"]
+    image_path = paths["image"]
+
+    if not (topo_path.exists() and profile_path.exists()):
+        return UrbanTALESInventory(
+            available=False,
+            datasets=[],
+            provenance_source="UrbanTALES (not loaded)",
+            notes="UA0625_d00 source files not found in repository root.",
+        )
+
+    try:
+        ds = load_ua0625_dataset(project_root=Path(__file__).resolve().parent.parent.parent)
+    except Exception as exc:  # pragma: no cover - defensive: never 500 on a read-only probe
+        return UrbanTALESInventory(
+            available=False,
+            datasets=[],
+            notes=f"Failed to load UA0625_d00 dataset: {exc}",
+        )
+
+    geom = ds.topology.geometry_summary()
+    summary = UrbanTALESDatasetSummary(
+        dataset_id=ds.dataset_id,
+        has_geometry=ds.provenance.has_geometry,
+        has_vertical_profile=ds.provenance.has_vertical_profile,
+        has_2d_wind_field=ds.provenance.has_2d_wind_field,
+        has_geometry_image=ds.image is not None,
+        topology_grid_shape=ds.topology.grid_shape,
+        plan_area_density=round(ds.topology.plan_area_density, 6),
+        building_height_values_m=[float(h) for h in ds.topology.building_height_values],
+        building_count=int(geom["building_count"]),
+        profile_num_levels=ds.profile.num_levels,
+        profile_z_min_m=round(ds.profile.z_min, 4),
+        profile_z_max_m=round(ds.profile.z_max, 4),
+        resolution_m=ds.topology.resolution_m,
+        domain_size_m=ds.topology.domain_size_m,
+        wind_direction_label_deg=ds.provenance.wind_direction_label_deg,
+        limitations=ds.limitations,
+    )
+    return UrbanTALESInventory(
+        available=True,
+        datasets=[summary],
+        provenance_source=ds.provenance.source,
+        license=ds.provenance.license,
+        locally_simulated=ds.provenance.locally_simulated,
+        notes=(
+            "Real UrbanTALES LES sample (geometry + 1D vertical profile). "
+            "No 2D wind field is available/fabricated; grid spacing is unknown."
+        ),
     )

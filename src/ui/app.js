@@ -137,6 +137,21 @@ const API = {
     return res.json();
   },
 
+  async fetchDatasetInventory() {
+    const res = await fetch(`${this.baseUrl}/api/inventory/datasets`);
+    return res.json();
+  },
+
+  async fetchCheckpointInventory() {
+    const res = await fetch(`${this.baseUrl}/api/inventory/checkpoints`);
+    return res.json();
+  },
+
+  async fetchCfdInventory() {
+    const res = await fetch(`${this.baseUrl}/api/inventory/cfd`);
+    return res.json();
+  },
+
   getExportTripletUrl(layoutId, modelId) {
     return `${this.baseUrl}/api/export/triplet/${layoutId}?model_id=${modelId}`;
   }
@@ -615,6 +630,44 @@ class MicroclimateApp {
       });
     }
 
+    if (this.dom.studioSelectField) {
+      this.dom.studioSelectField.addEventListener('change', async (e) => {
+        const val = e.target.value;
+        if (val !== 'velocity_magnitude') {
+          alert(`Field '${val}' is not available in the current model scope. Only 'velocity_magnitude' is supported.`);
+          this.dom.studioSelectField.value = 'velocity_magnitude';
+          return;
+        }
+        AppState.activeScalarField = val;
+        await this.loadActiveLayoutData();
+      });
+    }
+
+    // Connect Point Probe and Sample Transect buttons to existing drawer/readout
+    const btnPointProbe = document.getElementById('btn-point-probe');
+    if (btnPointProbe) {
+      btnPointProbe.addEventListener('click', async () => {
+        const px = AppState.studioProbe ? AppState.studioProbe.x : 50.0;
+        const py = AppState.studioProbe ? AppState.studioProbe.y : 50.0;
+        await this.updateStudioProbe(px, py);
+        const readout = this.dom.studioReadoutProbe;
+        if (readout) {
+          readout.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      });
+    }
+
+    const btnSampleTransect = document.getElementById('btn-sample-transect');
+    if (btnSampleTransect) {
+      btnSampleTransect.addEventListener('click', async () => {
+        await this.updateTransectChart();
+        const transectDrawer = document.querySelector('.analytics-drawer');
+        if (transectDrawer) {
+          transectDrawer.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    }
+
     // Studio Canvas synchronized cursor tracking
     [this.dom.canvasCfd, this.dom.canvasSurrogate, this.dom.canvasResidual].forEach(canvas => {
       if (!canvas) return;
@@ -669,11 +722,11 @@ class MicroclimateApp {
       // Update provenance banner and status
       const backendLabel = document.getElementById('backend-label');
       if (backendLabel && data.data_provenance) {
-        backendLabel.textContent = `Backend: ${data.data_provenance.solver_status || 'Local Live Fixture'}`;
+        backendLabel.textContent = `Backend: ${data.data_provenance.solver_status || 'Synthetic Fixture'}`;
       }
       const bannerText = document.getElementById('provenance-banner-text');
       if (bannerText && data.data_provenance) {
-        bannerText.innerHTML = `${data.data_provenance.solver_status || 'Synthetic Aerodynamic Benchmark (Castro & Robins 1977)'}. Active check: <code>${data.data_provenance.active_cfd_case || 'cfd/cases/simple2d_building_block'}</code>. Real RANS: ${data.data_provenance.real_rans_count || 1} • Synthetic: ${data.data_provenance.synthetic_fixture_count || 24} • UrbanTALES Target: ${data.data_provenance.target_dataset_size || 538}.`;
+        bannerText.innerHTML = `${data.data_provenance.solver_status}. Case: <code>${data.data_provenance.active_cfd_case}</code>. Executed OpenFOAM runs: ${data.data_provenance.real_rans_count} • Synthetic benchmarks: ${data.data_provenance.synthetic_fixture_count} • Target UrbanTALES: ${data.data_provenance.target_dataset_size} (not loaded).`;
       }
 
       // Update KPI Cards
@@ -686,10 +739,10 @@ class MicroclimateApp {
           <div class="kpi-value-row">
             <span class="kpi-value">${data.geometric_corpus_count}</span>
           </div>
-          <p class="kpi-desc">Orthogonal 2D building geometries</p>
+          <p class="kpi-desc">In-memory synthetic building geometries</p>
           <div class="kpi-substat">
             <span>Topological Families:</span>
-            <strong>${data.topological_families_count} distinct (A-D)</strong>
+            <strong>${data.topological_families_count} distinct families</strong>
           </div>
         `;
       }
@@ -701,9 +754,9 @@ class MicroclimateApp {
             <span class="kpi-icon">⚙️</span>
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-value">${data.ground_truth_solvers_count} <span class="kpi-unit">/ ${data.total_solvers_target}</span></span>
+            <span class="kpi-value">${data.ground_truth_solvers_count} <span class="kpi-unit">/ ${data.total_solvers_target} target</span></span>
           </div>
-          <p class="kpi-desc">RANS k-ε converged solutions</p>
+          <p class="kpi-desc">${data.solvers_status_desc}</p>
           <div class="kpi-substat">
             <span>Mesh resolution:</span>
             <strong>${data.mesh_resolution_desc}</strong>
@@ -712,7 +765,7 @@ class MicroclimateApp {
       }
 
       if (this.dom.kpiModels) {
-        const archList = data.supported_architectures || ['CompactUNet', 'CompactCNN', 'RandomForestBaseline'];
+        const archList = data.model_architectures || ['CompactUNet', 'CompactCNN', 'RandomForest'];
         this.dom.kpiModels.innerHTML = `
           <div class="kpi-header">
             <span class="kpi-label">Neural Architecture Suite</span>
@@ -721,7 +774,7 @@ class MicroclimateApp {
           <div class="kpi-value-row">
             <span class="kpi-value">${data.model_checkpoints_count}</span>
           </div>
-          <p class="kpi-desc">Verified model checkpoints</p>
+          <p class="kpi-desc">Evaluated model definitions</p>
           <div class="kpi-substat">
             <span>Scope:</span>
             <strong>${archList.join(', ')}</strong>
@@ -730,13 +783,15 @@ class MicroclimateApp {
       }
 
       if (this.dom.kpiBenchmark) {
+        const maeStr = data.zero_leakage_mae_mps !== null && data.zero_leakage_mae_mps !== undefined ? `${data.zero_leakage_mae_mps.toFixed(3)} m/s` : 'Unavailable';
+        const changeBadge = data.zero_leakage_change_pct !== null && data.zero_leakage_change_pct !== undefined ? `<span class="kpi-badge">${data.zero_leakage_change_pct}%</span>` : '<span class="kpi-badge badge-neutral">No Trained Checkpoint</span>';
         this.dom.kpiBenchmark.innerHTML = `
           <div class="kpi-header">
             <span class="kpi-label">Zero-Leakage Benchmark</span>
-            <span class="kpi-badge">${data.zero_leakage_change_pct}%</span>
+            ${changeBadge}
           </div>
           <div class="kpi-value-row">
-            <span class="kpi-value">${data.zero_leakage_mae_mps.toFixed(3)} <span class="kpi-unit">m/s</span></span>
+            <span class="kpi-value">${maeStr}</span>
           </div>
           <p class="kpi-desc">Held-Out Test Split MAE</p>
           <div class="kpi-substat">
@@ -761,8 +816,8 @@ class MicroclimateApp {
       const isSelected = l.layout_id === AppState.activeLayoutId;
       if (isSelected) card.style.borderColor = 'var(--primary)';
 
-      const familyTag = l.dataset_split === 'test' ? 'badge-amber' : 'badge-blue';
-      const familyLabel = l.layout_id.includes('staggered') ? 'Family D (Held-Out Test)' : (l.dataset_split === 'val' ? 'Family C (Validation)' : 'Family A/B (Train)');
+      const familyTag = l.dataset_split === 'test' ? 'badge-amber' : (l.dataset_split === 'val' ? 'badge-blue' : 'badge-neutral');
+      const familyLabel = l.dataset_split === 'test' ? 'Family D (Held-Out Test)' : (l.dataset_split === 'val' ? 'Family C (Validation)' : 'Family A/B (Train)');
 
       card.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -773,9 +828,9 @@ class MicroclimateApp {
           <span class="badge ${familyTag}">${familyLabel}</span>
         </div>
         <div style="margin-top: 10px; font-size: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-          <div>Domain: <strong>200m x 200m</strong></div>
+          <div>Domain: <strong>${l.domain_size_m[0]}m x ${l.domain_size_m[1]}m</strong></div>
           <div>Buildings: <strong>${l.num_buildings}</strong></div>
-          <div>Plan Area λp: <strong>${(l.plan_area_fraction || 0.22).toFixed(2)}</strong></div>
+          <div>Plan Area λp: <strong>${(l.plan_area_fraction || 0.0).toFixed(2)}</strong></div>
           <div>Roughness z₀: <strong>${(l.roughness_length_z0_m || 0.05).toFixed(2)}m</strong></div>
         </div>
         <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
@@ -808,13 +863,13 @@ class MicroclimateApp {
             <h4 style="margin: 0; font-size: 14px;">Compact U-Net (ResBlock-4)</h4>
             <span style="font-size: 11px; color: var(--text-muted);">Deep Learning 2D Spatial Surrogate</span>
           </div>
-          <span class="badge badge-green">Trained Checkpoint</span>
+          <span class="badge badge-amber">Untrained Initial Weights</span>
         </div>
         <div style="margin-top: 10px; font-size: 12px; line-height: 1.6;">
-          <div>Input Tensor: <strong>(N, 7, 128, 128) Multi-channel raster</strong></div>
-          <div>Output: <strong>(N, 1, 128, 128) Spatial Velocity Field</strong></div>
-          <div>Parameters: <strong>419,201 trainable weights</strong></div>
-          <div>Evaluation: <strong>Held-out Family D test split</strong></div>
+          <div>Input Tensor: <strong>(N, 7, Ny, Nx) Multi-channel raster</strong></div>
+          <div>Output: <strong>(N, 1, Ny, Nx) Spatial Velocity Field</strong></div>
+          <div>Parameters: <strong>488,577 trainable weights</strong></div>
+          <div>Checkpoint Status: <strong>No trained checkpoint on disk (eval mode)</strong></div>
         </div>
         <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
           <button class="btn btn-primary btn-sm" onclick="app.selectModelAndOpenStudio('unet-v2-resblock4')">Inspect in Studio</button>
@@ -827,13 +882,13 @@ class MicroclimateApp {
             <h4 style="margin: 0; font-size: 14px;">Compact Dilated CNN</h4>
             <span style="font-size: 11px; color: var(--text-muted);">Dilated Convolutional Surrogate</span>
           </div>
-          <span class="badge badge-green">Trained Checkpoint</span>
+          <span class="badge badge-amber">Untrained Initial Weights</span>
         </div>
         <div style="margin-top: 10px; font-size: 12px; line-height: 1.6;">
-          <div>Input Tensor: <strong>(N, 7, 128, 128) Raster channels</strong></div>
-          <div>Output: <strong>(N, 1, 128, 128) Spatial Velocity Field</strong></div>
-          <div>Parameters: <strong>98,400 weights (Receptive field = 64)</strong></div>
-          <div>Evaluation: <strong>Multi-dilation wake capturing</strong></div>
+          <div>Input Tensor: <strong>(N, 7, Ny, Nx) Multi-channel raster</strong></div>
+          <div>Output: <strong>(N, 1, Ny, Nx) Spatial Velocity Field</strong></div>
+          <div>Parameters: <strong>9,681 trainable weights</strong></div>
+          <div>Checkpoint Status: <strong>No trained checkpoint on disk (eval mode)</strong></div>
         </div>
         <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
           <button class="btn btn-primary btn-sm" onclick="app.selectModelAndOpenStudio('compact-cnn-dilated')">Inspect in Studio</button>
@@ -846,13 +901,13 @@ class MicroclimateApp {
             <h4 style="margin: 0; font-size: 14px;">Random Forest Morphometric Baseline</h4>
             <span style="font-size: 11px; color: var(--text-muted);">Traditional ML Geometric Feature Baseline</span>
           </div>
-          <span class="badge badge-blue">Trained Baseline</span>
+          <span class="badge badge-blue">Fitted on Synthetic Cohort</span>
         </div>
         <div style="margin-top: 10px; font-size: 12px; line-height: 1.6;">
           <div>Input Features: <strong>26D Morphometric Summary Vector</strong></div>
           <div>Target: <strong>Area-Averaged Fluid Velocity Magnitude [m/s]</strong></div>
           <div>Estimators: <strong>100 Decision Trees</strong></div>
-          <div>Evaluation: <strong>K-fold cross-family validation</strong></div>
+          <div>Evaluation: <strong>Scalar Tabular Baseline (Broadcasted)</strong></div>
         </div>
         <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
           <button class="btn btn-secondary btn-sm" onclick="app.selectModelAndOpenStudio('rf-baseline-morph')">Inspect in Studio</button>
@@ -903,9 +958,15 @@ class MicroclimateApp {
 
           let statusBadge = '<span class="badge badge-green">Completed</span>';
           if (exp.status === 'Training') {
-            statusBadge = `<span class="badge badge-amber pulse">Training (${exp.current_epoch}/${exp.total_epochs})</span>`;
+            statusBadge = `<span class="badge badge-amber pulse">Training (${exp.current_epoch || 0}/${exp.total_epochs || 0})</span>`;
           } else if (exp.status === 'Baseline') {
             statusBadge = '<span class="badge badge-blue">Baseline</span>';
+          } else if (exp.status === 'Untrained') {
+            statusBadge = '<span class="badge" style="background:#e2e8f0;color:#475569;">Untrained</span>';
+          } else if (typeof exp.status === 'string' && exp.status.startsWith('Failed')) {
+            statusBadge = `<span class="badge badge-red" style="background:#fee2e2;color:#b91c1c;">${exp.status}</span>`;
+          } else if (typeof exp.status === 'string' && exp.status.startsWith('Completed')) {
+            statusBadge = `<span class="badge badge-green">${exp.status}</span>`;
           }
 
           const maeText = exp.held_out_mae_mps !== null ? `${exp.held_out_mae_mps.toFixed(3)} m/s` : '—';
@@ -998,6 +1059,12 @@ class MicroclimateApp {
         domainExtent: fields.domain_extent_m,
       }
     );
+
+    // Update colorbar header text dynamically from actual field stats
+    const colorbarHdr = document.getElementById('overview-colorbar-header');
+    if (colorbarHdr && fields.stats) {
+      colorbarHdr.textContent = `Scalar Field: Velocity Magnitude |U| (m/s) — Min: ${fields.stats.min.toFixed(2)} | Mean: ${fields.stats.mean.toFixed(2)} | Max: ${fields.stats.max.toFixed(2)} m/s`;
+    }
   }
 
   async updateOverviewProbe() {
@@ -1115,10 +1182,13 @@ class MicroclimateApp {
     if (el('surrogate-peak-stat')) el('surrogate-peak-stat').textContent = `${surrPeak.toFixed(2)} m/s`;
     if (el('surrogate-cossim-stat')) el('surrogate-cossim-stat').textContent = cosSim !== null ? cosSim.toFixed(3) : '—';
     if (el('surrogate-arch-badge')) el('surrogate-arch-badge').textContent = pred.model_id || AppState.activeModelId;
-    if (el('surrogate-inf-badge')) el('surrogate-inf-badge').textContent = pred.inference_time_ms ? `Inf: ${pred.inference_time_ms.toFixed(1)} ms` : 'Inf: — ms';
+    if (el('surrogate-inf-badge')) {
+      const lat = pred.inference_latency_ms !== undefined ? pred.inference_latency_ms : pred.inference_time_ms;
+      el('surrogate-inf-badge').textContent = lat !== undefined && lat !== null ? `Inf: ${lat.toFixed(1)} ms` : 'Inf: — ms';
+    }
     if (el('surrogate-speedup-badge')) {
-      const speedup = pred.speedup_ratio || null;
-      el('surrogate-speedup-badge').textContent = speedup ? `Speedup: ${speedup}×` : 'Speedup: —';
+      const speedup = pred.speedup_factor !== undefined ? pred.speedup_factor : pred.speedup_ratio;
+      el('surrogate-speedup-badge').textContent = speedup !== null && speedup !== undefined ? `Speedup: ${speedup}×` : 'Speedup: N/A';
     }
 
     // Panel 3 stats
@@ -1126,10 +1196,17 @@ class MicroclimateApp {
     if (el('residual-peak-badge')) el('residual-peak-badge').textContent = `Peak: ${peak.toFixed(3)} m/s`;
     if (el('stat-panel-mae')) el('stat-panel-mae').textContent = `${(pred.field_mae || 0).toFixed(3)} m/s`;
     if (el('stat-panel-peak')) el('stat-panel-peak').textContent = `${peak.toFixed(3)} m/s`;
-    if (el('stat-panel-r2')) el('stat-panel-r2').textContent = pred.r_squared !== undefined ? pred.r_squared.toFixed(3) : '—';
+    if (el('stat-panel-r2')) {
+      const r2Val = pred.r2_score !== undefined ? pred.r2_score : pred.r_squared;
+      el('stat-panel-r2').textContent = r2Val !== undefined && r2Val !== null ? r2Val.toFixed(3) : '—';
+    }
 
     // Provenance
-    if (el('matrix-provenance') && pred.data_provenance) el('matrix-provenance').textContent = pred.data_provenance;
+    if (el('matrix-provenance')) {
+      const prov = pred.data_provenance || "SURROGATE_PREDICTION";
+      const trainedNote = pred.is_trained_checkpoint ? " (Trained)" : " (Untrained Eval)";
+      el('matrix-provenance').textContent = `${prov}${trainedNote}`;
+    }
     if (el('matrix-layout-subtitle')) {
       el('matrix-layout-subtitle').textContent = `${AppState.activeLayoutId.replace('layout_', 'Layout #')} Evaluation`;
     }
@@ -1327,7 +1404,13 @@ class MicroclimateApp {
   }
 
   inspectExperiment(expId) {
-    alert(`Experiment ${expId}\nArchitecture: U-Net ResBlock-4\nHeld-Out Protocol: Zero-Leakage Family D\nStatus: Verified`);
+    const exp = AppState.experiments.find(e => e.experiment_id === expId);
+    if (exp) {
+      const maeInfo = exp.held_out_mae_mps !== null && exp.held_out_mae_mps !== undefined ? `${exp.held_out_mae_mps} m/s` : 'Unavailable';
+      alert(`Experiment: ${exp.experiment_id}\nArchitecture: ${exp.architecture}\nDetails: ${exp.model_details}\nSplit: ${exp.dataset_split}\nStatus: ${exp.status}\nHeld-Out MAE: ${maeInfo}\nProvenance: ${exp.provenance}`);
+    } else {
+      alert(`Experiment ${expId} not found.`);
+    }
   }
 }
 

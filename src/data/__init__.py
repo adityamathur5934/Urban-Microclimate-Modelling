@@ -24,6 +24,19 @@ from src.data.split import LayoutSplitter, DatasetSplit
 from src.data.config import PreprocessingConfig
 from src.data.loader import LayoutDataLoader
 from src.data.area_averaging import compute_area_averaged_wind_speed
+from src.data.ua0625 import (
+    UA0625Provenance,
+    UA0625Topology,
+    UA0625VerticalProfile,
+    UA0625Image,
+    UA0625Dataset,
+    parse_ua0625_dataset_id,
+    load_ua0625_topology,
+    load_ua0625_profile,
+    load_ua0625_image,
+    load_ua0625_dataset,
+    default_ua0625_paths,
+)
 
 __all__ = [
     "UrbanLayoutSample",
@@ -54,4 +67,15 @@ __all__ = [
     "PreprocessingConfig",
     "LayoutDataLoader",
     "compute_area_averaged_wind_speed",
+    "UA0625Provenance",
+    "UA0625Topology",
+    "UA0625VerticalProfile",
+    "UA0625Image",
+    "UA0625Dataset",
+    "parse_ua0625_dataset_id",
+    "load_ua0625_topology",
+    "load_ua0625_profile",
+    "load_ua0625_image",
+    "load_ua0625_dataset",
+    "default_ua0625_paths",
 ]

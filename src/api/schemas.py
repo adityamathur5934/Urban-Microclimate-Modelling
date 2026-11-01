@@ -17,10 +17,15 @@ class LayoutSummary(BaseModel):
     inflow_speed_mps: float
     wind_direction_deg: float
     is_held_out: bool = False
-    has_cfd_ground_truth: bool = True
+    has_cfd_ground_truth: bool = False
     active_fluid_fraction: float = 0.85
-    data_provenance: str = "CANONICAL_AERODYNAMIC_BENCHMARK"
-    provenance_label: str = "Canonical Benchmark Fixture"
+    data_provenance: str = "SYNTHETIC_PROCEDURAL_FIXTURE"
+    provenance_label: str = "Synthetic Procedural Fixture"
+    # Fields aligned with UI catalog card
+    num_buildings: int = 0
+    plan_area_fraction: float = 0.0
+    roughness_length_z0_m: float = 0.05
+    dataset_split: str = "train"
 
 
 class LayoutDetail(BaseModel):
@@ -41,8 +46,9 @@ class LayoutDetail(BaseModel):
     geometric_features: Dict[str, float] = Field(default_factory=dict)
     buildings_count: int = 0
     building_heights: List[float] = Field(default_factory=list)
-    data_provenance: str = "CANONICAL_AERODYNAMIC_BENCHMARK"
-    provenance_label: str = "Canonical Aerodynamic Benchmark (Castro & Robins 1977)"
+    has_cfd_ground_truth: bool = False
+    data_provenance: str = "SYNTHETIC_PROCEDURAL_FIXTURE"
+    provenance_label: str = "Synthetic Aerodynamic Benchmark (Castro & Robins 1977 formulation)"
 
 
 class SpatialFieldData(BaseModel):
@@ -62,8 +68,9 @@ class SpatialFieldData(BaseModel):
     # Pre-calculated field statistics
     stats: Dict[str, float]
     building_boxes: List[Dict[str, Any]] = Field(default_factory=list)
+    has_cfd_ground_truth: bool = False
     data_provenance: str = "CANONICAL_AERODYNAMIC_BENCHMARK"
-    provenance_description: str = "Analytical Aerodynamic Benchmark Reference Field"
+    provenance_description: str = "Analytical Aerodynamic Benchmark Reference Field (Castro & Robins 1977 formulation)"
     has_velocity_components: bool = True
 
 
@@ -71,7 +78,7 @@ class SurrogatePredictionRequest(BaseModel):
     """Request payload to run surrogate inference on a layout."""
     layout_id: str
     model_id: str = "unet-v2-resblock4"
-    scalar_field: str = "velocity_magnitude"  # "velocity_magnitude", "velocity_u", "velocity_v", "tke"
+    scalar_field: str = "velocity_magnitude"  # "velocity_magnitude" supported
 
 
 class SurrogatePredictionResponse(BaseModel):
@@ -94,10 +101,12 @@ class SurrogatePredictionResponse(BaseModel):
     total_cells: int
     active_fluid_fraction: float
     inference_latency_ms: float
-    speedup_factor: float
-    speedup_notes: str = "Estimated speedup vs 2D OpenFOAM RANS solve (~12s)"
+    speedup_factor: Optional[float] = None
+    speedup_notes: Optional[str] = None
     device: str = "cpu"
     data_provenance: str = "SURROGATE_PREDICTION"
+    is_trained_checkpoint: bool = False
+    prediction_type: str = "spatially_resolved_neural"  # or "scalar_tabular_baseline"
     stats_pred: Dict[str, float]
     stats_err: Dict[str, float]
 
@@ -163,7 +172,7 @@ class ExperimentRecord(BaseModel):
     current_epoch: Optional[int] = None
     total_epochs: Optional[int] = None
     is_implemented: bool = True
-    provenance: str = "BENCHMARK_EXPERIMENT"
+    provenance: str = "SYNTHETIC_TEST_FIXTURE"
     created_at: str
 
 
@@ -177,27 +186,145 @@ class ExperimentRunRequest(BaseModel):
     seed: int = 42
 
 
+# ---------------------------------------------------------------------------
+# Inventory / Status Schemas (P1)
+# ---------------------------------------------------------------------------
+
+class DatasetInventoryItem(BaseModel):
+    """Describes one entry in the dataset corpus."""
+    layout_id: str
+    layout_family: str
+    data_provenance: str
+    has_cfd_ground_truth: bool = False
+    domain_size_m: Tuple[float, float, float]
+    grid_shape: Tuple[int, int]
+    inflow_speed_mps: float
+    source_file: Optional[str] = None
+
+
+class DatasetInventory(BaseModel):
+    """Summary of all datasets available in-memory or on disk."""
+    total_loaded: int
+    synthetic_count: int
+    canonical_benchmark_count: int
+    cfd_solver_output_count: int
+    items: List[DatasetInventoryItem]
+    notes: str = ""
+
+
+class CheckpointInfo(BaseModel):
+    """Describes one model checkpoint on disk."""
+    filename: str
+    model_architecture: Optional[str] = None
+    is_trained: bool
+    epoch: Optional[int] = None
+    val_mae_mps: Optional[float] = None
+    val_nrmse_pct: Optional[float] = None
+    file_size_kb: Optional[float] = None
+    provenance: str = "UNKNOWN"
+    notes: str = ""
+
+
+class CheckpointInventory(BaseModel):
+    """All checkpoint files found in the checkpoints directory."""
+    checkpoint_dir: str
+    total_found: int
+    trained_count: int
+    items: List[CheckpointInfo]
+
+
+class CFDCaseInfo(BaseModel):
+    """Describes one OpenFOAM case template or solver output."""
+    case_id: str
+    path: str
+    case_type: str  # "template", "solver_output"
+    solver_available: bool = False
+    solver_name: Optional[str] = None
+    has_reference_output: bool = False
+    output_files: List[str] = []
+    notes: str = ""
+
+
+class CFDInventory(BaseModel):
+    """OpenFOAM case templates and solver output status."""
+    openfoam_available: bool
+    solver_binary: Optional[str] = None
+    total_cases: int
+    cases: List[CFDCaseInfo]
+    notes: str = ""
+
+
+class ProvenanceInfo(BaseModel):
+    """Nested provenance summary for overview banner and transparency."""
+    solver_status: str
+    active_cfd_case: str
+    real_rans_count: int = 0
+    synthetic_fixture_count: int = 24
+    target_dataset_size: int = 538
+    is_demonstration_fixture: bool = True
+
+
 class SystemOverview(BaseModel):
     """High-level system metrics driving the dashboard header."""
     domain: str = "Computational Wind Engineering"
-    active_dataset: str = "UrbanFlow-2D v1.4"
+    active_dataset: str = "Synthetic Benchmark Corpus (In-Memory)"
     dataset_version: str = "v0.9.4-research"
-    stack_info: str = "PyTorch 2.3 • OpenFOAM"
+    stack_info: str = "PyTorch • OpenFOAM Template"
     geometric_corpus_count: int
     corpus_target_total: int = 538
-    corpus_provenance: str = "SYNTHETIC_BENCHMARK_COHORT"
-    corpus_status_desc: str = "24 Synthetic Benchmarks Loaded • Target UrbanTALES: 538 Layouts"
+    corpus_provenance: str = "SYNTHETIC_PROCEDURAL_FIXTURE"
+    corpus_status_desc: str = "24 Synthetic Benchmarks Loaded • Target UrbanTALES: 538 Layouts (Not Loaded)"
     topological_families_count: int
-    ground_truth_solvers_count: int
-    solvers_status_desc: str = "1 OpenFOAM Case Setup • 24 Analytical Flow Benchmarks"
-    total_solvers_target: int
-    mesh_resolution_desc: str
+    ground_truth_solvers_count: int = 0
+    solvers_status_desc: str = "0 Executed OpenFOAM Solutions • 24 Analytical Flow Benchmarks"
+    total_solvers_target: int = 538
+    mesh_resolution_desc: str = "16,384 Cartesian cells (128x128)"
     model_checkpoints_count: int
     model_architectures: List[str]
-    zero_leakage_mae_mps: float
-    zero_leakage_change_pct: float
-    test_partition_desc: str
-    selected_layout_id: str
+    zero_leakage_mae_mps: Optional[float] = None
+    zero_leakage_change_pct: Optional[float] = None
+    test_partition_desc: str = "Held-out Family D (Procedural)"
+    selected_layout_id: str = "layout_042_staggered_canyon"
     backend_status: str = "Connected (Synthetic/Benchmark Mode)"
     device: str = "cpu"
     is_demonstration_fixture: bool = True
+    data_provenance: Optional[ProvenanceInfo] = None
+
+
+# ---------------------------------------------------------------------------
+# Real UrbanTALES dataset inventory (UA0625_d00 geometry + vertical profile)
+# ---------------------------------------------------------------------------
+
+class UrbanTALESDatasetSummary(BaseModel):
+    """Summary of one real UrbanTALES sample loaded from disk (UA0625_d00).
+
+    This is geometry + a 1D vertical profile only -- no 2D wind field, and no
+    assumed grid spacing. Fields mirror the honest provenance exposed by
+    ``src.data.ua0625``.
+    """
+    dataset_id: str
+    has_geometry: bool
+    has_vertical_profile: bool
+    has_2d_wind_field: bool = False
+    has_geometry_image: bool = False
+    topology_grid_shape: Tuple[int, int]
+    plan_area_density: float
+    building_height_values_m: List[float] = Field(default_factory=list)
+    building_count: int = 0
+    profile_num_levels: int
+    profile_z_min_m: float
+    profile_z_max_m: float
+    resolution_m: Optional[Tuple[float, float, float]] = None
+    domain_size_m: Optional[Tuple[float, float, float]] = None
+    wind_direction_label_deg: Optional[float] = None
+    limitations: List[str] = Field(default_factory=list)
+
+
+class UrbanTALESInventory(BaseModel):
+    """Inventory of real UrbanTALES samples available on disk (read-only)."""
+    available: bool
+    datasets: List[UrbanTALESDatasetSummary] = Field(default_factory=list)
+    provenance_source: str = ""
+    license: str = ""
+    locally_simulated: bool = False
+    notes: str = ""
