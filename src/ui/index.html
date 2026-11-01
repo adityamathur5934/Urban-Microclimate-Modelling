@@ -126,7 +126,7 @@
         <!-- View Header -->
         <div class="view-header">
           <div class="view-title-wrap">
-            <div class="domain-tag">Domain: Computational Wind Engineering <span>• Active Dataset: UrbanFlow-2D v1.4</span></div>
+            <div class="domain-tag">Domain: Computational Wind Engineering <span>• Active Dataset: Synthetic Benchmark Corpus</span></div>
             <h2>Urban Microclimate Overview</h2>
             <p class="view-subtitle">Explore CFD reference fields, evaluate neural surrogates, and analyze generalization across unseen urban layouts.</p>
           </div>
@@ -162,8 +162,8 @@
             </div>
             <div class="field-controls-group">
               <div class="toggle-group">
-                <button class="toggle-btn active" data-overview-mode="cfd">CFD Reference [OpenFOAM]</button>
-                <button class="toggle-btn" data-overview-mode="surrogate">Surrogate Prediction [U-Net]</button>
+                <button class="toggle-btn active" data-overview-mode="cfd">Benchmark Reference [Analytical]</button>
+                <button class="toggle-btn" data-overview-mode="surrogate">Surrogate Forward [CompactUNet]</button>
                 <button class="toggle-btn" data-overview-mode="residual">Absolute Residual (|ΔU|)</button>
               </div>
               <div class="view-options">
@@ -187,7 +187,7 @@
 
           <div class="colorbar-wrapper">
             <div class="colorbar-header">
-              <span>Scalar Field: Velocity Magnitude |U| (m/s) — Min: 0.00 | Mean: 3.81 | Max: 7.24 m/s</span>
+              <span id="overview-colorbar-header">Scalar Field: Velocity Magnitude |U| (m/s) — Min: 0.00 | Mean: 2.91 | Max: 5.24 m/s</span>
             </div>
             <div class="colorbar-bar" id="overview-colorbar"></div>
             <div class="colorbar-ticks">
@@ -198,7 +198,7 @@
               <span>6.0</span>
               <span>7.5+</span>
             </div>
-            <p class="colorbar-caption">Demonstration field generated from pre-baked synthetic OpenFOAM benchmark</p>
+            <p class="colorbar-caption">Analytical benchmark field generated via Castro &amp; Robins (1977) obstacle wake and canyon formulation</p>
           </div>
         </div>
 
@@ -232,7 +232,7 @@
 
           <div class="protocol-footer">
             <div class="protocol-meta">
-              <span>Dataset: <strong>UrbanFlow-2D v1.4</strong></span>
+              <span>Dataset: <strong>Synthetic Benchmark Corpus (UrbanTALES Target)</strong></span>
               <span>Stack: <strong>PyTorch 2.3 • OpenFOAM</strong></span>
               <span>Release: <strong>v0.9.4-research</strong></span>
             </div>
@@ -313,10 +313,10 @@
             <div class="panel-header">
               <div class="panel-title">
                 <span class="status-dot" style="background-color: #2563eb;"></span>
-                <span>CFD Reference</span>
+                <span>Aerodynamic Benchmark Reference</span>
               </div>
               <div style="display: flex; gap: 6px;">
-                <span class="panel-badge" id="cfd-solver-badge">OpenFOAM RANS</span>
+                <span class="panel-badge" id="cfd-solver-badge">Analytical Benchmark</span>
                 <span class="panel-badge" id="cfd-mesh-badge">16,384 cells (128x128)</span>
               </div>
             </div>
@@ -660,7 +660,7 @@
               <thead>
                 <tr>
                   <th>Audit Target Claim</th>
-                  <th>Original Stitch State</th>
+                  <th>Original Mockup State</th>
                   <th>Corrected State</th>
                   <th>Scientific Verification</th>
                 </tr>
@@ -669,32 +669,32 @@
                 <tr>
                   <td><strong>128 layouts</strong></td>
                   <td><span class="badge badge-amber">Hardcoded</span></td>
-                  <td><strong>24 Loaded • 538 Target</strong></td>
-                  <td>Reflects actual loaded samples with honest target indicator</td>
+                  <td><strong>24 Synthetic Loaded • 538 Target</strong></td>
+                  <td>Reflects actual in-memory synthetic samples; target UrbanTALES not downloaded</td>
                 </tr>
                 <tr>
                   <td><strong>96/128 converged</strong></td>
                   <td><span class="badge badge-amber">Hardcoded</span></td>
-                  <td><strong>24/24 Converged</strong></td>
-                  <td>OpenFOAM cases verified < 1e-5 residual</td>
+                  <td><strong>0 Executed Solutions</strong></td>
+                  <td>Template case in cfd/cases/simple2d_building_block is unexecuted; fields are analytical fixtures</td>
                 </tr>
                 <tr>
                   <td><strong>6 checkpoints (FNO, PINN)</strong></td>
                   <td><span class="badge badge-red">Fabricated Models</span></td>
-                  <td><strong>3 Verified Models</strong></td>
+                  <td><strong>3 Implemented Models</strong></td>
                   <td>CompactUNet, CompactCNN, RandomForest (FNO/PINN removed)</td>
                 </tr>
                 <tr>
                   <td><strong>14.2 ms / 840x Speedup</strong></td>
                   <td><span class="badge badge-amber">Static</span></td>
-                  <td><strong>Measured live on device</strong></td>
-                  <td>PyTorch CPU/MPS inference timer vs. RANS 25s compute</td>
+                  <td><strong>Latency measured live; Speedup unavailable</strong></td>
+                  <td>PyTorch inference latency measured per forward pass; speedup factor not measured vs OpenFOAM</td>
                 </tr>
                 <tr>
                   <td><strong>Fake Streamlines</strong></td>
                   <td><span class="badge badge-red">Spline curves</span></td>
                   <td><strong>Numerical (Ux, Uy) Integration</strong></td>
-                  <td>Runge-Kutta tracer advection stopping at building masks</td>
+                  <td>Particle tracer advection stopping at solid building masks</td>
                 </tr>
               </tbody>
             </table>
