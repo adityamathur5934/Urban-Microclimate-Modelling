@@ -1,0 +1,459 @@
+{
+  "config": {
+    "seed": 42,
+    "dataset_source": "urbantales",
+    "n_layouts": 18,
+    "grid_shape": [
+      64,
+      64
+    ],
+    "domain_size_m": [
+      128.0,
+      128.0,
+      60.0
+    ],
+    "train_ratio": 0.6,
+    "val_ratio": 0.2,
+    "test_ratio": 0.2,
+    "epochs": 35,
+    "batch_size": 4,
+    "learning_rate": 0.001,
+    "unet_base_channels": 16,
+    "unet_depth": 3,
+    "cnn_hidden_channels": 16,
+    "cnn_num_layers": 4,
+    "ensemble_size": 3,
+    "patience": 12,
+    "device": "cpu",
+    "checkpoint_dir": "checkpoints/urbantales_experiment",
+    "output_dir": "outputs/urbantales_experiment",
+    "manifest_path": "configs/urbantales_experiment.json",
+    "generate_figures": true
+  },
+  "split": {
+    "train_layout_ids": [
+      "urbantales_UA16_d00",
+      "urbantales_UA16_d45",
+      "urbantales_UA25_d00",
+      "urbantales_UA25_d45",
+      "urbantales_US0625_d00",
+      "urbantales_US0625_d45",
+      "urbantales_US1111_d00",
+      "urbantales_US1111_d45",
+      "urbantales_US16_d00",
+      "urbantales_US16_d45",
+      "urbantales_US25_d00",
+      "urbantales_US25_d45"
+    ],
+    "val_layout_ids": [
+      "urbantales_UA35_d00",
+      "urbantales_UA35_d45",
+      "urbantales_US35_d00",
+      "urbantales_US35_d45"
+    ],
+    "test_layout_ids": [
+      "urbantales_UA0625_d00",
+      "urbantales_UA0625_d45",
+      "urbantales_UA1111_d00",
+      "urbantales_UA1111_d45"
+    ],
+    "metadata": {
+      "split_strategy": "group_holdout",
+      "seed": 42,
+      "train_ratio": 0.6,
+      "val_ratio": 0.2,
+      "test_ratio": 0.2,
+      "num_groups": 10,
+      "train_groups": [
+        "urbantales_UA16",
+        "urbantales_UA25",
+        "urbantales_US0625",
+        "urbantales_US1111",
+        "urbantales_US16",
+        "urbantales_US25"
+      ],
+      "val_groups": [
+        "urbantales_UA35",
+        "urbantales_US35"
+      ],
+      "test_groups": [
+        "urbantales_UA0625",
+        "urbantales_UA1111"
+      ],
+      "created_at": "2026-11-22T14:05:06.145591+00:00"
+    },
+    "layout_to_family": {
+      "urbantales_UA0625_d00": "urbantales_UA0625",
+      "urbantales_UA0625_d45": "urbantales_UA0625",
+      "urbantales_UA1111_d00": "urbantales_UA1111",
+      "urbantales_UA1111_d45": "urbantales_UA1111",
+      "urbantales_UA16_d00": "urbantales_UA16",
+      "urbantales_UA16_d45": "urbantales_UA16",
+      "urbantales_UA25_d00": "urbantales_UA25",
+      "urbantales_UA25_d45": "urbantales_UA25",
+      "urbantales_UA35_d00": "urbantales_UA35",
+      "urbantales_UA35_d45": "urbantales_UA35",
+      "urbantales_US0625_d00": "urbantales_US0625",
+      "urbantales_US0625_d45": "urbantales_US0625",
+      "urbantales_US1111_d00": "urbantales_US1111",
+      "urbantales_US1111_d45": "urbantales_US1111",
+      "urbantales_US16_d00": "urbantales_US16",
+      "urbantales_US16_d45": "urbantales_US16",
+      "urbantales_US25_d00": "urbantales_US25",
+      "urbantales_US25_d45": "urbantales_US25",
+      "urbantales_US35_d00": "urbantales_US35",
+      "urbantales_US35_d45": "urbantales_US35"
+    }
+  },
+  "models": {
+    "random_forest": {
+      "checkpoint": "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/urbantales_experiment/rf_baseline.joblib",
+      "is_fitted": true,
+      "feature_dim": 26
+    },
+    "cnn": {
+      "checkpoint": "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/urbantales_experiment/compactcnn_seed242/best_checkpoint.pt",
+      "is_trained": true,
+      "params": 5905
+    },
+    "unet_ensemble": {
+      "size": 3,
+      "checkpoints": [
+        "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/urbantales_experiment/compactunet_seed142/best_checkpoint.pt",
+        "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/urbantales_experiment/compactunet_seed143/best_checkpoint.pt",
+        "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/urbantales_experiment/compactunet_seed144/best_checkpoint.pt"
+      ],
+      "is_trained": true,
+      "seeds": [
+        142,
+        143,
+        144
+      ]
+    }
+  },
+  "metrics": {
+    "random_forest": {
+      "scalar": {
+        "mae": 0.1368214339017868,
+        "rmse": 0.15427302526294417,
+        "r2": -0.359239692265207,
+        "nrmse_range": 41.99974828452573,
+        "nrmse_mean": 25.86840310382106,
+        "max_error": 0.2284373641014099,
+        "num_samples": 4
+      },
+      "broadcast_spatial": {
+        "per_layout": [
+          {
+            "layout_id": "urbantales_UA0625_d00",
+            "scalar_pred_mps": 0.5767,
+            "mae_mps": 0.34799905718398927,
+            "rmse_mps": 0.3714004881023358,
+            "nrmse_inflow_percent": 7.428009762046715,
+            "max_error_mps": 0.5908992886543274
+          },
+          {
+            "layout_id": "urbantales_UA0625_d45",
+            "scalar_pred_mps": 0.5274,
+            "mae_mps": 0.19104360928857636,
+            "rmse_mps": 0.22843019833080597,
+            "nrmse_inflow_percent": 4.568603966616119,
+            "max_error_mps": 0.5609928369522095
+          },
+          {
+            "layout_id": "urbantales_UA1111_d00",
+            "scalar_pred_mps": 0.3856,
+            "mae_mps": 0.2637439666933982,
+            "rmse_mps": 0.2862229951402775,
+            "nrmse_inflow_percent": 5.72445990280555,
+            "max_error_mps": 0.4320474863052368
+          },
+          {
+            "layout_id": "urbantales_UA1111_d45",
+            "scalar_pred_mps": 0.3484,
+            "mae_mps": 0.16928089378108424,
+            "rmse_mps": 0.20095993968706372,
+            "nrmse_inflow_percent": 4.019198793741275,
+            "max_error_mps": 0.5035201907157898
+          }
+        ],
+        "aggregate": {
+          "mean_mae_mps": 0.24302,
+          "mean_rmse_mps": 0.27175,
+          "mean_nrmse_range_percent": null,
+          "mean_nrmse_inflow_percent": 5.43507,
+          "mean_max_error_mps": 0.52186,
+          "mean_r2_score": null,
+          "mean_inference_ms": null
+        }
+      }
+    },
+    "unet_ensemble_mean": {
+      "per_layout": [
+        {
+          "layout_id": "urbantales_UA0625_d00",
+          "mae_mps": 0.26544222613733454,
+          "rmse_mps": 0.3062019729143162,
+          "nrmse_range_percent": 27.42890218348144,
+          "nrmse_inflow_percent": 6.124039458286325,
+          "max_error_mps": 0.8318991959095001,
+          "r2_score": -0.09334713365505998,
+          "inference_ms": 6.536,
+          "u_ref_mps": 5.0
+        },
+        {
+          "layout_id": "urbantales_UA0625_d45",
+          "mae_mps": 0.16823659898906598,
+          "rmse_mps": 0.2193457691522982,
+          "nrmse_range_percent": 21.257375733022187,
+          "nrmse_inflow_percent": 4.386915383045964,
+          "max_error_mps": 0.7157357931137085,
+          "r2_score": 0.03395578388729581,
+          "inference_ms": 5.295,
+          "u_ref_mps": 5.0
+        },
+        {
+          "layout_id": "urbantales_UA1111_d00",
+          "mae_mps": 0.12664468478651913,
+          "rmse_mps": 0.1552052115677752,
+          "nrmse_range_percent": 20.581026005776383,
+          "nrmse_inflow_percent": 3.104104231355504,
+          "max_error_mps": 0.48294758796691895,
+          "r2_score": 0.5111780339523913,
+          "inference_ms": 6.364,
+          "u_ref_mps": 5.0
+        },
+        {
+          "layout_id": "urbantales_UA1111_d45",
+          "mae_mps": 0.10190911474294902,
+          "rmse_mps": 0.1312595386235327,
+          "nrmse_range_percent": 16.21740691522176,
+          "nrmse_inflow_percent": 2.6251907724706545,
+          "max_error_mps": 0.4436666667461395,
+          "r2_score": 0.4680598259176757,
+          "inference_ms": 6.082,
+          "u_ref_mps": 5.0
+        }
+      ],
+      "aggregate": {
+        "mean_mae_mps": 0.16556,
+        "mean_rmse_mps": 0.203,
+        "mean_nrmse_range_percent": 21.37118,
+        "mean_nrmse_inflow_percent": 4.06006,
+        "mean_max_error_mps": 0.61856,
+        "mean_r2_score": 0.22996,
+        "mean_inference_ms": 6.06925
+      }
+    },
+    "unet_member0": {
+      "per_layout": [
+        {
+          "layout_id": "urbantales_UA0625_d00",
+          "mae_mps": 0.245652030727242,
+          "rmse_mps": 0.2977456475957752,
+          "nrmse_range_percent": 26.671403079911443,
+          "nrmse_inflow_percent": 5.954912951915505,
+          "max_error_mps": 0.8072183728218079,
+          "r2_score": -0.033791471423252784,
+          "inference_ms": 1.939,
+          "u_ref_mps": 5.0
+        },
+        {
+          "layout_id": "urbantales_UA0625_d45",
+          "mae_mps": 0.19048487470915415,
+          "rmse_mps": 0.2448697255218316,
+          "nrmse_range_percent": 23.730969515283434,
+          "nrmse_inflow_percent": 4.897394510436632,
+          "max_error_mps": 0.7873197123408318,
+          "r2_score": -0.2039506059091245,
+          "inference_ms": 1.933,
+          "u_ref_mps": 5.0
+        },
+        {
+          "layout_id": "urbantales_UA1111_d00",
+          "mae_mps": 0.1364371849040449,
+          "rmse_mps": 0.16924839846064704,
+          "nrmse_range_percent": 22.443226325769906,
+          "nrmse_inflow_percent": 3.384967969212941,
+          "max_error_mps": 0.5007099509239197,
+          "r2_score": 0.41871749949621473,
+          "inference_ms": 1.923,
+          "u_ref_mps": 5.0
+        },
+        {
+          "layout_id": "urbantales_UA1111_d45",
+          "mae_mps": 0.11868016380555126,
+          "rmse_mps": 0.14924311107956686,
+          "nrmse_range_percent": 18.439317150220802,
+          "nrmse_inflow_percent": 2.9848622215913374,
+          "max_error_mps": 0.4457274079322815,
+          "r2_score": 0.3123148731278189,
+          "inference_ms": 1.943,
+          "u_ref_mps": 5.0
+        }
+      ],
+      "aggregate": {
+        "mean_mae_mps": 0.17281,
+        "mean_rmse_mps": 0.21528,
+        "mean_nrmse_range_percent": 22.82123,
+        "mean_nrmse_inflow_percent": 4.30553,
+        "mean_max_error_mps": 0.63524,
+        "mean_r2_score": 0.12332,
+        "mean_inference_ms": 1.9345
+      }
+    },
+    "cnn": {
+      "per_layout": [
+        {
+          "layout_id": "urbantales_UA0625_d00",
+          "mae_mps": 0.4021105169302831,
+          "rmse_mps": 0.4573850159435914,
+          "nrmse_range_percent": 40.97154810304721,
+          "nrmse_inflow_percent": 9.147700318871827,
+          "max_error_mps": 1.0591702163219452,
+          "r2_score": -1.4395288996677715,
+          "inference_ms": 0.485,
+          "u_ref_mps": 5.0
+        },
+        {
+          "layout_id": "urbantales_UA0625_d45",
+          "mae_mps": 0.2767355201452166,
+          "rmse_mps": 0.3253760969504262,
+          "nrmse_range_percent": 31.533053836187907,
+          "nrmse_inflow_percent": 6.507521939008523,
+          "max_error_mps": 0.8272362351417542,
+          "r2_score": -1.125738172252274,
+          "inference_ms": 0.441,
+          "u_ref_mps": 5.0
+        },
+        {
+          "layout_id": "urbantales_UA1111_d00",
+          "mae_mps": 0.2614364715341567,
+          "rmse_mps": 0.301775892539394,
+          "nrmse_range_percent": 40.0170679162889,
+          "nrmse_inflow_percent": 6.035517850787881,
+          "max_error_mps": 0.6777012944221497,
+          "r2_score": -0.8480222649287656,
+          "inference_ms": 0.44,
+          "u_ref_mps": 5.0
+        },
+        {
+          "layout_id": "urbantales_UA1111_d45",
+          "mae_mps": 0.20179312982589073,
+          "rmse_mps": 0.23985601305708976,
+          "nrmse_range_percent": 29.6347420202815,
+          "nrmse_inflow_percent": 4.797120261141795,
+          "max_error_mps": 0.5993280410766602,
+          "r2_score": -0.7762425329676466,
+          "inference_ms": 0.436,
+          "u_ref_mps": 5.0
+        }
+      ],
+      "aggregate": {
+        "mean_mae_mps": 0.28552,
+        "mean_rmse_mps": 0.3311,
+        "mean_nrmse_range_percent": 35.5391,
+        "mean_nrmse_inflow_percent": 6.62197,
+        "mean_max_error_mps": 0.79086,
+        "mean_r2_score": -1.04738,
+        "mean_inference_ms": 0.4505
+      }
+    },
+    "uncertainty": {
+      "per_layout": [
+        {
+          "layout_id": "urbantales_UA0625_d00",
+          "mean_pixel_std_mps": 0.05699,
+          "max_pixel_std_mps": 0.17119,
+          "p95_pixel_std_mps": 0.11518
+        },
+        {
+          "layout_id": "urbantales_UA0625_d45",
+          "mean_pixel_std_mps": 0.06601,
+          "max_pixel_std_mps": 0.19424,
+          "p95_pixel_std_mps": 0.14341
+        },
+        {
+          "layout_id": "urbantales_UA1111_d00",
+          "mean_pixel_std_mps": 0.03572,
+          "max_pixel_std_mps": 0.12308,
+          "p95_pixel_std_mps": 0.07546
+        },
+        {
+          "layout_id": "urbantales_UA1111_d45",
+          "mean_pixel_std_mps": 0.03688,
+          "max_pixel_std_mps": 0.13095,
+          "p95_pixel_std_mps": 0.07082
+        }
+      ],
+      "method": "ensemble_predictive_disagreement (U-Net std, NOT calibrated)"
+    }
+  },
+  "uncertainty": {
+    "per_layout": [
+      {
+        "layout_id": "urbantales_UA0625_d00",
+        "mean_pixel_std_mps": 0.05699,
+        "max_pixel_std_mps": 0.17119,
+        "p95_pixel_std_mps": 0.11518
+      },
+      {
+        "layout_id": "urbantales_UA0625_d45",
+        "mean_pixel_std_mps": 0.06601,
+        "max_pixel_std_mps": 0.19424,
+        "p95_pixel_std_mps": 0.14341
+      },
+      {
+        "layout_id": "urbantales_UA1111_d00",
+        "mean_pixel_std_mps": 0.03572,
+        "max_pixel_std_mps": 0.12308,
+        "p95_pixel_std_mps": 0.07546
+      },
+      {
+        "layout_id": "urbantales_UA1111_d45",
+        "mean_pixel_std_mps": 0.03688,
+        "max_pixel_std_mps": 0.13095,
+        "p95_pixel_std_mps": 0.07082
+      }
+    ],
+    "method": "ensemble_predictive_disagreement (U-Net std, NOT calibrated)"
+  },
+  "artifacts": {
+    "checkpoint_dir": "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/urbantales_experiment",
+    "output_dir": "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/urbantales_experiment",
+    "figures": [
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/urbantales_experiment/training_curves_unet_member0.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/urbantales_experiment/training_curves_unet_member1.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/urbantales_experiment/training_curves_unet_member2.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/urbantales_experiment/training_curves_cnn.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/urbantales_experiment/triplet_unet_ensemble_mean_urbantales_UA0625_d00.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/urbantales_experiment/triplet_unet_member0_urbantales_UA0625_d00.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/urbantales_experiment/triplet_cnn_urbantales_UA0625_d00.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/urbantales_experiment/triplet_rf_broadcast_urbantales_UA0625_d00.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/urbantales_experiment/scatter_rf_area_averaged.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/urbantales_experiment/uncertainty_urbantales_UA0625_d00.png"
+    ],
+    "checkpoints": [
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/urbantales_experiment/rf_baseline.joblib",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/urbantales_experiment/compactunet_seed142/best_checkpoint.pt",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/urbantales_experiment/compactunet_seed143/best_checkpoint.pt",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/urbantales_experiment/compactunet_seed144/best_checkpoint.pt",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/urbantales_experiment/compactcnn_seed242/best_checkpoint.pt"
+    ],
+    "normalizer_fitted_layout_ids": [
+      "urbantales_UA16_d00",
+      "urbantales_UA16_d45",
+      "urbantales_UA25_d00",
+      "urbantales_UA25_d45",
+      "urbantales_US0625_d00",
+      "urbantales_US0625_d45",
+      "urbantales_US1111_d00",
+      "urbantales_US1111_d45",
+      "urbantales_US16_d00",
+      "urbantales_US16_d45",
+      "urbantales_US25_d00",
+      "urbantales_US25_d45"
+    ]
+  },
+  "provenance": "REAL_URBANTALES_LES"
+}

@@ -1,0 +1,55 @@
+/*--------------------------------*- OpenFOAM -*-----------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2312 / 10 / 11                       |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+application     simpleFoam;
+startFrom       startTime;
+startTime       0;
+stopAt          endTime;
+endTime         2000;
+deltaT          1;
+writeControl    timeStep;
+writeInterval   100;
+purgeWrite      3;
+writeFormat     ascii;
+writePrecision  7;
+writeCompression off;
+timeFormat      general;
+timePrecision   6;
+runTimeModifiable true;
+
+functions
+{
+    residuals
+    {
+        type            residuals;
+        libs            ("libutilityFunctionObjects.so");
+        writeControl    timeStep;
+        writeInterval   1;
+        fields          (p U k omega);
+    }
+    buildingForces
+    {
+        type            forces;
+        libs            ("libforces.so");
+        writeControl    timeStep;
+        writeInterval   10;
+        patches         (building);
+        rho             rhoInf;
+        rhoInf          1.225;
+        CofG            (110.0 0 14.0);
+    }
+}
+// ************************************************************************* //

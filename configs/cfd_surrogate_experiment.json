@@ -1,0 +1,364 @@
+{
+  "config": {
+    "seed": 42,
+    "n_layouts": 18,
+    "grid_shape": [
+      64,
+      64
+    ],
+    "domain_size_m": [
+      128.0,
+      128.0,
+      60.0
+    ],
+    "train_ratio": 0.66,
+    "val_ratio": 0.17,
+    "test_ratio": 0.17,
+    "epochs": 35,
+    "batch_size": 4,
+    "learning_rate": 0.001,
+    "unet_base_channels": 16,
+    "unet_depth": 3,
+    "cnn_hidden_channels": 16,
+    "cnn_num_layers": 4,
+    "ensemble_size": 3,
+    "patience": 12,
+    "device": "cpu",
+    "checkpoint_dir": "checkpoints/cfd_surrogate_experiment",
+    "output_dir": "outputs/cfd_surrogate_experiment",
+    "manifest_path": "configs/cfd_surrogate_experiment.json",
+    "generate_figures": true
+  },
+  "split": {
+    "train_layout_ids": [
+      "ref_aligned_03",
+      "ref_aligned_12",
+      "ref_aligned_15",
+      "ref_single_02",
+      "ref_single_05",
+      "ref_single_11",
+      "ref_single_14",
+      "ref_single_17",
+      "ref_staggered_01",
+      "ref_staggered_04",
+      "ref_staggered_10",
+      "ref_staggered_13"
+    ],
+    "val_layout_ids": [
+      "ref_aligned_06",
+      "ref_staggered_07",
+      "ref_staggered_16"
+    ],
+    "test_layout_ids": [
+      "ref_aligned_00",
+      "ref_aligned_09",
+      "ref_single_08"
+    ],
+    "metadata": {
+      "split_strategy": "ratio",
+      "seed": 42,
+      "train_ratio": 0.66,
+      "val_ratio": 0.17,
+      "test_ratio": 0.17,
+      "created_at": "2026-11-01T15:24:09.492631+00:00"
+    }
+  },
+  "models": {
+    "random_forest": {
+      "checkpoint": "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/cfd_surrogate_experiment/rf_baseline.joblib",
+      "is_fitted": true,
+      "feature_dim": 26
+    },
+    "cnn": {
+      "checkpoint": "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/cfd_surrogate_experiment/compactcnn_seed242/best_checkpoint.pt",
+      "is_trained": true,
+      "params": 5905
+    },
+    "unet_ensemble": {
+      "size": 3,
+      "checkpoints": [
+        "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/cfd_surrogate_experiment/compactunet_seed142/best_checkpoint.pt",
+        "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/cfd_surrogate_experiment/compactunet_seed143/best_checkpoint.pt",
+        "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/cfd_surrogate_experiment/compactunet_seed144/best_checkpoint.pt"
+      ],
+      "is_trained": true,
+      "seeds": [
+        142,
+        143,
+        144
+      ]
+    }
+  },
+  "metrics": {
+    "random_forest": {
+      "scalar": {
+        "mae": 0.01908477209508419,
+        "rmse": 0.023489718826899483,
+        "r2": 0.9996060160493977,
+        "nrmse_range": 0.9356922365429967,
+        "nrmse_mean": 0.7200609360617618,
+        "max_error": 0.0384516716003418,
+        "num_samples": 3
+      },
+      "broadcast_spatial": {
+        "per_layout": [
+          {
+            "layout_id": "ref_aligned_00",
+            "scalar_pred_mps": 2.4348,
+            "mae_mps": 0.21034789877824295,
+            "rmse_mps": 0.38325269133397066,
+            "nrmse_inflow_percent": 10.950076895256304,
+            "max_error_mps": 2.1448329985141754
+          },
+          {
+            "layout_id": "ref_aligned_09",
+            "scalar_pred_mps": 2.4348,
+            "mae_mps": 0.21034789877824295,
+            "rmse_mps": 0.38325269133397066,
+            "nrmse_inflow_percent": 10.950076895256304,
+            "max_error_mps": 2.1448329985141754
+          },
+          {
+            "layout_id": "ref_single_08",
+            "scalar_pred_mps": 4.9742,
+            "mae_mps": 0.36510367454990506,
+            "rmse_mps": 0.5906769263194176,
+            "nrmse_inflow_percent": 8.43824180456311,
+            "max_error_mps": 2.5193936824798584
+          }
+        ],
+        "aggregate": {
+          "mean_mae_mps": 0.26193,
+          "mean_rmse_mps": 0.45239,
+          "mean_nrmse_range_percent": null,
+          "mean_nrmse_inflow_percent": 10.1128,
+          "mean_max_error_mps": 2.26969,
+          "mean_r2_score": null,
+          "mean_inference_ms": null
+        }
+      }
+    },
+    "unet_ensemble_mean": {
+      "per_layout": [
+        {
+          "layout_id": "ref_aligned_00",
+          "mae_mps": 0.09606051311278954,
+          "rmse_mps": 0.12903895698005838,
+          "nrmse_range_percent": 3.8224698470368934,
+          "nrmse_inflow_percent": 3.686827342287382,
+          "max_error_mps": 0.9287116527557373,
+          "r2_score": 0.8865687608035205,
+          "inference_ms": 8.589,
+          "u_ref_mps": 3.5
+        },
+        {
+          "layout_id": "ref_aligned_09",
+          "mae_mps": 0.09606051311278954,
+          "rmse_mps": 0.12903895698005838,
+          "nrmse_range_percent": 3.8224698470368934,
+          "nrmse_inflow_percent": 3.686827342287382,
+          "max_error_mps": 0.9287116527557373,
+          "r2_score": 0.8865687608035205,
+          "inference_ms": 5.518,
+          "u_ref_mps": 3.5
+        },
+        {
+          "layout_id": "ref_single_08",
+          "mae_mps": 0.12376399917734994,
+          "rmse_mps": 0.19078980367177295,
+          "nrmse_range_percent": 3.9123127547727448,
+          "nrmse_inflow_percent": 2.7255686238824706,
+          "max_error_mps": 1.82912015914917,
+          "r2_score": 0.895225734179419,
+          "inference_ms": 6.101,
+          "u_ref_mps": 7.0
+        }
+      ],
+      "aggregate": {
+        "mean_mae_mps": 0.1053,
+        "mean_rmse_mps": 0.14962,
+        "mean_nrmse_range_percent": 3.85242,
+        "mean_nrmse_inflow_percent": 3.36641,
+        "mean_max_error_mps": 1.22885,
+        "mean_r2_score": 0.88945,
+        "mean_inference_ms": 6.736
+      }
+    },
+    "unet_member0": {
+      "per_layout": [
+        {
+          "layout_id": "ref_aligned_00",
+          "mae_mps": 0.09774107796259415,
+          "rmse_mps": 0.14202610495544538,
+          "nrmse_range_percent": 4.207182980936409,
+          "nrmse_inflow_percent": 4.057888713012725,
+          "max_error_mps": 1.0328693389892578,
+          "r2_score": 0.862587151592304,
+          "inference_ms": 2.252,
+          "u_ref_mps": 3.5
+        },
+        {
+          "layout_id": "ref_aligned_09",
+          "mae_mps": 0.09774107796259415,
+          "rmse_mps": 0.14202610495544538,
+          "nrmse_range_percent": 4.207182980936409,
+          "nrmse_inflow_percent": 4.057888713012725,
+          "max_error_mps": 1.0328693389892578,
+          "r2_score": 0.862587151592304,
+          "inference_ms": 2.009,
+          "u_ref_mps": 3.5
+        },
+        {
+          "layout_id": "ref_single_08",
+          "mae_mps": 0.19099286943674088,
+          "rmse_mps": 0.26466920638056934,
+          "nrmse_range_percent": 5.427274896197596,
+          "nrmse_inflow_percent": 3.7809886625795617,
+          "max_error_mps": 1.5006780624389648,
+          "r2_score": 0.7983718643887273,
+          "inference_ms": 2.121,
+          "u_ref_mps": 7.0
+        }
+      ],
+      "aggregate": {
+        "mean_mae_mps": 0.12883,
+        "mean_rmse_mps": 0.18291,
+        "mean_nrmse_range_percent": 4.61388,
+        "mean_nrmse_inflow_percent": 3.96559,
+        "mean_max_error_mps": 1.18881,
+        "mean_r2_score": 0.84118,
+        "mean_inference_ms": 2.12733
+      }
+    },
+    "cnn": {
+      "per_layout": [
+        {
+          "layout_id": "ref_aligned_00",
+          "mae_mps": 0.1645787253823036,
+          "rmse_mps": 0.2505504740777613,
+          "nrmse_range_percent": 7.421957327747521,
+          "nrmse_inflow_percent": 7.158584973650324,
+          "max_error_mps": 1.5221729278564453,
+          "r2_score": 0.5723569224736154,
+          "inference_ms": 0.594,
+          "u_ref_mps": 3.5
+        },
+        {
+          "layout_id": "ref_aligned_09",
+          "mae_mps": 0.1645787253823036,
+          "rmse_mps": 0.2505504740777613,
+          "nrmse_range_percent": 7.421957327747521,
+          "nrmse_inflow_percent": 7.158584973650324,
+          "max_error_mps": 1.5221729278564453,
+          "r2_score": 0.5723569224736154,
+          "inference_ms": 0.46,
+          "u_ref_mps": 3.5
+        },
+        {
+          "layout_id": "ref_single_08",
+          "mae_mps": 0.3104587973701575,
+          "rmse_mps": 0.47835418041593736,
+          "nrmse_range_percent": 9.809073259280341,
+          "nrmse_inflow_percent": 6.833631148799105,
+          "max_error_mps": 2.2905943393707275,
+          "r2_score": 0.3413670534510149,
+          "inference_ms": 0.451,
+          "u_ref_mps": 7.0
+        }
+      ],
+      "aggregate": {
+        "mean_mae_mps": 0.21321,
+        "mean_rmse_mps": 0.32649,
+        "mean_nrmse_range_percent": 8.21766,
+        "mean_nrmse_inflow_percent": 7.05027,
+        "mean_max_error_mps": 1.77831,
+        "mean_r2_score": 0.49536,
+        "mean_inference_ms": 0.50167
+      }
+    },
+    "uncertainty": {
+      "per_layout": [
+        {
+          "layout_id": "ref_aligned_00",
+          "mean_pixel_std_mps": 0.04825,
+          "max_pixel_std_mps": 0.60396,
+          "p95_pixel_std_mps": 0.13671
+        },
+        {
+          "layout_id": "ref_aligned_09",
+          "mean_pixel_std_mps": 0.04825,
+          "max_pixel_std_mps": 0.60396,
+          "p95_pixel_std_mps": 0.13671
+        },
+        {
+          "layout_id": "ref_single_08",
+          "mean_pixel_std_mps": 0.12302,
+          "max_pixel_std_mps": 0.62175,
+          "p95_pixel_std_mps": 0.24741
+        }
+      ],
+      "method": "ensemble_predictive_disagreement (U-Net std, NOT calibrated)"
+    }
+  },
+  "uncertainty": {
+    "per_layout": [
+      {
+        "layout_id": "ref_aligned_00",
+        "mean_pixel_std_mps": 0.04825,
+        "max_pixel_std_mps": 0.60396,
+        "p95_pixel_std_mps": 0.13671
+      },
+      {
+        "layout_id": "ref_aligned_09",
+        "mean_pixel_std_mps": 0.04825,
+        "max_pixel_std_mps": 0.60396,
+        "p95_pixel_std_mps": 0.13671
+      },
+      {
+        "layout_id": "ref_single_08",
+        "mean_pixel_std_mps": 0.12302,
+        "max_pixel_std_mps": 0.62175,
+        "p95_pixel_std_mps": 0.24741
+      }
+    ],
+    "method": "ensemble_predictive_disagreement (U-Net std, NOT calibrated)"
+  },
+  "artifacts": {
+    "checkpoint_dir": "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/cfd_surrogate_experiment",
+    "output_dir": "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/cfd_surrogate_experiment",
+    "figures": [
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/cfd_surrogate_experiment/training_curves_unet_member0.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/cfd_surrogate_experiment/training_curves_unet_member1.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/cfd_surrogate_experiment/training_curves_unet_member2.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/cfd_surrogate_experiment/training_curves_cnn.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/cfd_surrogate_experiment/triplet_unet_ensemble_mean_ref_aligned_00.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/cfd_surrogate_experiment/triplet_unet_member0_ref_aligned_00.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/cfd_surrogate_experiment/triplet_cnn_ref_aligned_00.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/cfd_surrogate_experiment/triplet_rf_broadcast_ref_aligned_00.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/cfd_surrogate_experiment/scatter_rf_area_averaged.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/cfd_surrogate_experiment/uncertainty_ref_aligned_00.png"
+    ],
+    "checkpoints": [
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/cfd_surrogate_experiment/rf_baseline.joblib",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/cfd_surrogate_experiment/compactunet_seed142/best_checkpoint.pt",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/cfd_surrogate_experiment/compactunet_seed143/best_checkpoint.pt",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/cfd_surrogate_experiment/compactunet_seed144/best_checkpoint.pt",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/cfd_surrogate_experiment/compactcnn_seed242/best_checkpoint.pt"
+    ],
+    "normalizer_fitted_layout_ids": [
+      "ref_aligned_03",
+      "ref_aligned_12",
+      "ref_aligned_15",
+      "ref_single_02",
+      "ref_single_05",
+      "ref_single_11",
+      "ref_single_14",
+      "ref_single_17",
+      "ref_staggered_01",
+      "ref_staggered_04",
+      "ref_staggered_10",
+      "ref_staggered_13"
+    ]
+  },
+  "provenance": "ANALYTICAL_REFERENCE"
+}
