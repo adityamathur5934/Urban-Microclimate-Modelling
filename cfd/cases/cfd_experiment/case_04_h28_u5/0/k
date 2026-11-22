@@ -1,0 +1,58 @@
+/*--------------------------------*- OpenFOAM -*-----------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2312 / 10 / 11                       |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    location    "0";
+    object      k;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 2 -2 0 0 0 0];
+// Richards & Hoxey (1993): k = u*^2 / sqrt(Cmu) = 0.4981 m2/s2
+internalField   uniform 0.4981;
+
+boundaryField
+{
+    inlet
+    {
+        type            atmBoundaryLayerInletK;
+        Uref            5.00;
+        Zref            10.00;
+        z0              uniform 0.0500;
+        d               uniform 0.0;
+        value           uniform 0.4981;
+    }
+    outlet
+    {
+        type            inletOutlet;
+        inletValue      uniform 0.4981;
+        value           uniform 0.4981;
+    }
+    ground
+    {
+        type            kqRWallFunction;
+        value           uniform 0.4981;
+    }
+    building
+    {
+        type            kqRWallFunction;
+        value           uniform 0.4981;
+    }
+    top
+    {
+        type            slip;
+    }
+    frontAndBack
+    {
+        type            empty;
+    }
+}
+// ************************************************************************* //

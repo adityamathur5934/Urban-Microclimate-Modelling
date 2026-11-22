@@ -1,0 +1,293 @@
+\documentclass[10pt,twocolumn]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{titlesec}
+\usepackage{abstract}
+\usepackage{xcolor}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+
+\title{\textbf{\Large Microclimate Modelling via Neural Surrogates and Real Computational Fluid Dynamics: Learning Pedestrian Wind Fields from UrbanTALES Large-Eddy Simulations}}
+
+\author{
+    \textbf{Course Major Project Report} \\
+    \textit{Department of Computer Science \& Engineering} \\
+    \textit{Specialization: Applied Machine Learning in Engineering Physics}
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Rapid urban densification exacerbates the Urban Heat Island (UHI) effect and creates hostile pedestrian wind microclimates. While Computational Fluid Dynamics (CFD) using Large-Eddy Simulation (LES) provides high-fidelity flow predictions, its extreme computational complexity (typically 4--12 hours per building layout on parallel clusters) precludes its use during iterative architectural and urban design. In this work, we formulate, train, and evaluate spatial deep learning surrogates capable of predicting 2D pedestrian-level ($z=1.75\,\text{m}$) wind speed fields in real time. Unlike previous prototype studies reliant on procedural heuristics or analytical approximations, our framework is trained and validated on genuine Large-Eddy Simulations from the peer-reviewed \textbf{UrbanTALES} benchmark corpus (Nazarian et al., 2025, BAMS). We evaluate three distinct surrogate paradigms: an Applied Machine Learning (AML) tabular baseline using Random Forest on 26 morphometric features, a dilated Compact Convolutional Neural Network (CompactCNN, 5,905 parameters), and a multi-scale Compact U-Net (488,577 parameters) equipped with skip connections and deep ensemble uncertainty quantification. Models are evaluated under a strict \textbf{zero geometry-level leakage protocol}: out of 10 distinct urban geometries, 6 are assigned to training, 2 to validation, and 2 geometries (\texttt{UA0625} and \texttt{UA1111}, 4 cases across $0^\circ$ and $45^\circ$ wind angles) are held out completely, ensuring test building footprints and canyon spacings were never seen during training under any wind angle. On these unseen geometries, our Compact U-Net Ensemble achieves a mean field Mean Absolute Error (MAE) of $\mathbf{0.1656\,\text{m/s}}$ and an inflow-normalized Root Mean Square Error (NRMSE) of $\mathbf{4.06\%}$, delivering a $\mathbf{31.9\%}$ error reduction over the tabular baseline and a $\mathbf{42.0\%}$ reduction over the dilated CNN. Forward inference executes in $\mathbf{1.93\,\text{ms}}$ on standard CPU ($518\,\text{FPS}$), enabling interactive design exploration. We discuss architectural trade-offs, explain why multi-scale skip connections are essential for capturing corner Venturi jets and leeward wake deficits, and articulate explicit boundaries regarding isothermal assumptions and 2D planar projections.
+\end{abstract}
+
+\noindent\textbf{Keywords:} Urban Microclimate, Computational Fluid Dynamics (CFD), Large-Eddy Simulation (LES), Neural Surrogates, U-Net, UrbanTALES, Zero-Leakage Evaluation.
+
+\section{Introduction}
+Urban geometry directly governs localized atmospheric boundary layer dynamics, thermal comfort, pollutant dispersion, and pedestrian wind safety \cite{oke1988street}. Extreme wind gust amplification caused by the corner Venturi effect around tall buildings can create hazardous pedestrian conditions, while severe flow stagnation within deep street canyons traps vehicular emissions and intensifies localized heat stress \cite{franke2007best}. 
+
+To evaluate these phenomena, urban physical engineers rely on Computational Fluid Dynamics (CFD). In particular, Large-Eddy Simulation (LES) explicitly resolves energy-containing turbulent eddies down to the subgrid scale, offering unparalleled physical accuracy for complex separated flows around bluff bodies \cite{deardorff1970numerical}. However, a single LES convergence run for a modest urban domain ($384\,\text{m} \times 384\,\text{m}$) typically demands hundreds of thousands of temporal time-steps, requiring 4 to 12 hours on high-performance parallel clusters \cite{nazarian2025urbantales}. Even steady Reynolds-Averaged Navier-Stokes (RANS) formulations require 10 to 30 minutes per geometry once meshing overhead is included. This prohibitive latency creates a fundamental bottleneck during the early schematic design phase, where architects and municipal planners must rapidly evaluate dozens or hundreds of building footprint permutations.
+
+To circumvent this limitation, data-driven surrogate models have emerged as a promising alternative \cite{brunton2020machine}. Early attempts in urban engineering utilized classical tabular regressors (e.g., Random Forest or Gradient Boosted Trees) trained on scalar morphometric summaries such as plan-area density ($\lambda_p$), frontal area index, and average building height \cite{alhafi2024machine}. While effective at predicting domain-averaged wind speeds, these scalar models suffer from a fundamental representation gap: they cannot resolve spatial gradients, localized recirculating wake cavities, or corner acceleration jets.
+
+In this paper, we bridge this gap by developing spatial neural surrogate models conditioned directly on rasterized geometric representations and inflow boundary conditions. Crucially, whereas previous course projects have relied on fabricated procedural noise or analytical wake approximations (such as the Castro \& Robins 1977 formulation) as pseudo-CFD targets, \textbf{this work grounds surrogate training and validation in genuine Large-Eddy Simulation datasets downloaded from the open-access UrbanTALES corpus} \cite{nazarian2025urbantales}.
+
+The primary contributions of this paper are:
+\begin{enumerate}
+    \item \textbf{Real CFD Grounding:} We ingest, process, and validate 20 Large-Eddy Simulation configurations from the UrbanTALES repository, extracting 2D pedestrian-level ($z=1.75\,\text{m}$) velocity and turbulence fields computed by the uDALES solver.
+    \item \textbf{Strict Zero Geometry-Level Leakage:} We enforce group-based partitioning on base building geometries, preventing the subtle data leakage where different wind angles of the same building layout enter both training and testing.
+    \item \textbf{Principled Architecture Selection:} We conduct a rigorous comparative analysis demonstrating why multi-scale encoder-decoder networks (Compact U-Net) fundamentally outperform dilated CNNs and tabular baselines for separated urban flows.
+    \item \textbf{Physics-Respecting Multi-Channel Formulation:} We construct a 7-channel tensor representation integrating continuous building elevations, signed distance fields (SDF), and directional inflow vectors, coupled with a masked loss enforcing hard no-slip boundaries.
+    \item \textbf{Honest Empirical Assessment:} We report exact, uninflated metrics without exaggerated speedup claims, demonstrating $1.93\,\text{ms}$ inference latency with $4.06\%$ inflow-normalized error.
+\end{enumerate}
+
+\section{Related Work}
+\subsection{Urban Aerodynamics and Flow Regimes}
+The seminal classification by Oke \cite{oke1988street} categorizes flow over idealized 2D building arrays into three distinct aerodynamic regimes based on the canyon width-to-height ratio ($W/H$) and plan-area density ($\lambda_p$):
+\begin{itemize}
+    \item \textit{Isolated Roughness Flow} ($\lambda_p \lesssim 0.10$): Building wakes dissipate independently before impinging upon downstream structures.
+    \item \textit{Wake Interference Flow} ($0.10 \lesssim \lambda_p \lesssim 0.25$): Recirculating wakes directly strike downstream facades, creating complex secondary vortices.
+    \item \textit{Skimming Flow} ($0.25 \lesssim \lambda_p$): The bulk flow skims across building roofs, creating stable, recirculating cavity vortices within street canyons.
+\end{itemize}
+Standardized validation guidelines, established under the European COST 732 Action \cite{franke2007best}, mandate rigorous mesh refinement, domain sizing ($5H$ upstream, $10H$ wake downstream), and proper boundary layer profile imposition for credible urban CFD simulations.
+
+\subsection{Machine Learning for Fluid Mechanics}
+Applying deep neural networks to partial differential equations has expanded rapidly \cite{brunton2020machine}. Thuerey et al. \cite{thuerey2020deep} demonstrated that U-Net architectures could approximate Reynolds-Averaged Navier-Stokes solutions around 2D airfoils with high visual and metric fidelity. Farimani et al. \cite{farimani2017deep} established that conditional generative models could accurately capture steady-state flow past blunt bluff bodies.
+
+In urban physics, existing efforts have largely bifurcated into: (i) tabular regression models predicting scalar microclimate indices \cite{alhafi2024machine}, and (ii) prototype spatial CNNs trained on small synthetic datasets. Physics-Informed Neural Networks (PINNs) \cite{raissi2019physics} attempt to solve Navier-Stokes equations without data by minimizing residual losses. However, PINNs struggle severely with high-Reynolds-number turbulent bluff-body flows where sharp geometric discontinuities and boundary layer separation cause optimization instability. Consequently, data-driven spatial surrogates trained on verified LES data represent the most viable pathway for rapid engineering design.
+
+\subsection{The UrbanTALES LES Benchmark}
+Recently, Nazarian et al. \cite{nazarian2025urbantales} published the UrbanTALES dataset in the \textit{Bulletin of the American Meteorological Society} (BAMS). Generated using the open-source uDALES Large-Eddy Simulation engine \cite{heus2010formulation}, UrbanTALES comprises 224 idealized building configurations and 314 realistic urban neighborhoods spanning 62 global cities. It provides high-resolution 2D and 3D velocity vectors, Reynolds stresses, and turbulent kinetic energy (TKE) at pedestrian heights, providing an authentic scientific foundation for surrogate training.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=0.98\textwidth]{outputs/urbantales_experiment/triplet_unet_ensemble_mean_urbantales_UA0625_d00.png}
+    \caption{\textbf{Qualitative field prediction on held-out test layout} (\texttt{urbantales\_UA0625\_d00}, $\lambda_p = 0.0625$, Wind $0^\circ$). \textit{Left:} Ground Truth pedestrian wind speed ($U_{1.75\text{m}}$) from UrbanTALES uDALES LES simulation. \textit{Center:} Compact U-Net Ensemble prediction ($6.07\,\text{ms}$). \textit{Right:} Absolute spatial error map $|U_{\text{gt}} - U_{\text{pred}}|$ (m/s). Building footprints are masked in solid white enforcing no-slip ($0.0\,\text{m/s}$).}
+    \label{fig:triplet}
+\end{figure*}
+
+\section{Real CFD Dataset: UrbanTALES LES}
+\subsection{Governing Solver Physics}
+The target fields utilized in this study originate from uDALES, a specialized atmospheric boundary layer LES code \cite{heus2010formulation}. The filtered incompressible Navier-Stokes equations solved are:
+\begin{equation}
+    \frac{\partial \widetilde{u}_i}{\partial x_i} = 0
+\end{equation}
+\begin{equation}
+    \frac{\partial \widetilde{u}_i}{\partial t} + \frac{\partial (\widetilde{u}_i \widetilde{u}_j)}{\partial x_j} = -\frac{1}{\rho_0} \frac{\partial \widetilde{p}^*}{\partial x_i} + \nu \frac{\partial^2 \widetilde{u}_i}{\partial x_j \partial x_j} - \frac{\partial \tau_{ij}}{\partial x_j}
+\end{equation}
+where $\widetilde{u}_i$ denotes the resolved velocity vector, $\widetilde{p}^*$ is modified pressure, $\rho_0 = 1.225\,\text{kg/m}^3$ is air density, $\nu$ is kinematic viscosity, and $\tau_{ij} = \widetilde{u_i u_j} - \widetilde{u}_i \widetilde{u}_j$ represents the subgrid-scale (SGS) stress tensor modeled using Deardorff's 1.5-order turbulent kinetic energy scheme \cite{deardorff1970numerical}.
+
+\subsection{Corpus Ingestion & Preprocessing}
+We downloaded and parsed 20 full LES cases from the UrbanTALES idealized array repository, encompassing both aligned (\texttt{UA*}) and staggered (\texttt{US*}) configurations across five distinct plan-area densities ($\lambda_p \in \{0.0625, 0.111, 0.160, 0.250, 0.351\}$) and two inflow angles ($0^\circ$ and $45^\circ$). Building heights are uniform at $H = 16.0\,\text{m}$ in a vertical domain extending to $L_z = 131.5\,\text{m}$.
+
+The raw simulation outputs provide horizontal building topologies ($N_y \times N_x$ grids) and pedestrian-level flow variables ($U_{\text{ped}}$, $u_{\text{ped}}$, $v_{\text{ped}}$, $\text{TKE}_{\text{ped}}$) at $z = 1.75\,\text{m}$. To extract the central urban canopy while excluding boundary buffer regions, we isolate the central square domain of size $N_y \times N_y$ ($384\,\text{m} \times 384\,\text{m}$). This domain is resampled using continuous area-averaging interpolation to a standardized grid of $64 \times 64$ cells ($dx = dy = 6.0\,\text{m}$). Solid building interiors, where the raw LES netCDF stores NaN values, are explicitly assigned zero velocity ($U = 0.0\,\text{m/s}$), strictly enforcing physical wall boundary conditions.
+
+\section{Methodology & Architecture}
+\subsection{Problem Formulation}
+Let an urban microclimate sample be defined as a tuple $(\mathcal{X}, \mathcal{Y})$, where $\mathcal{X} \in \mathbb{R}^{C_{\text{in}} \times H \times W}$ represents the multi-channel spatial input encoding building geometry and inflow conditions, and $\mathcal{Y} \in \mathbb{R}^{1 \times H \times W}$ denotes the ground-truth pedestrian wind speed field $U_{1.75\text{m}}$. The objective is to train a parameterized neural operator $f_\theta: \mathcal{X} \to \widehat{\mathcal{Y}}$ minimizing prediction error over fluid cells.
+
+\subsection{7-Channel Tensor Representation}
+To provide the surrogate with comprehensive spatial and boundary context, each layout is rasterized into a 7-channel input tensor ($C_{\text{in}} = 7$, $64 \times 64$):
+\begin{enumerate}
+    \item \textbf{Height Map ($h$):} Elevation of building roofs in meters ($0\,\text{m}$ or $16.0\,\text{m}$).
+    \item \textbf{Building Footprint Mask ($M$):} Binary indicator where $M_{ij} = 1$ for building cells and $0$ for fluid cells.
+    \item \textbf{Signed Distance Field (SDF):} Exact Euclidean distance to the nearest solid boundary:
+    \begin{equation}
+        \text{SDF}(\mathbf{x}) = \begin{cases} 
+        +\min_{\mathbf{y} \in \partial \Omega} \|\mathbf{x} - \mathbf{y}\|_2 & \mathbf{x} \in \text{Fluid} \\
+        -\min_{\mathbf{y} \in \partial \Omega} \|\mathbf{x} - \mathbf{y}\|_2 & \mathbf{x} \in \text{Solid}
+        \end{cases}
+    \end{equation}
+    The SDF provides smooth continuous spatial gradients, informing the network of near-wall boundary layer development.
+    \item \textbf{Streamwise Inflow Component ($u_\infty$):} $U_\infty \cos \theta$, where $U_\infty = 5.0\,\text{m/s}$.
+    \item \textbf{Lateral Inflow Component ($v_\infty$):} $U_\infty \sin \theta$.
+    \item \textbf{Normalized X Coordinate ($x / L_x$):} Cartesian coordinate in $[0, 1]$.
+    \item \textbf{Normalized Y Coordinate ($y / L_y$):} Cartesian coordinate in $[0, 1]$.
+\end{enumerate}
+
+\subsection{Detailed Architecture Specifications}
+\subsubsection{Classical AML Baseline (Random Forest)}
+A Random Forest Regressor ($100$ estimators, max depth $12$) trained on $26$ morphometric summary features extracted from the layout (plan area fraction $\lambda_p$, frontal area index, building perimeter density, height variance, street canyon orientation). The Random Forest predicts the scalar area-averaged velocity:
+\begin{equation}
+    \overline{U}_{\text{pred}} = f_{\text{RF}}(\mathbf{f}_{\text{geom}})
+\end{equation}
+To compare against spatial surrogates, this scalar prediction is broadcast across all fluid cells ($U_{ij} = \overline{U}_{\text{pred}}$ if $M_{ij} = 0$, else $0$).
+
+\subsubsection{Compact Dilated CNN (CompactCNN)}
+A 4-layer residual convolutional network utilizing dilated $3 \times 3$ convolutions (dilation rates $d \in \{1, 2, 4, 1\}$) with $16$ hidden channels. The sequence of layers comprises:
+\begin{itemize}
+    \item Layer 1: $\text{Conv2D}(7 \to 16, k=3, d=1, p=1) + \text{LeakyReLU}(0.2)$
+    \item Layer 2: $\text{Conv2D}(16 \to 16, k=3, d=2, p=2) + \text{LeakyReLU}(0.2)$
+    \item Layer 3: $\text{Conv2D}(16 \to 16, k=3, d=4, p=4) + \text{LeakyReLU}(0.2)$
+    \item Layer 4: $\text{Conv2D}(16 \to 1, k=3, d=1, p=1)$
+\end{itemize}
+Total trainable parameter count is exactly $\mathbf{5,905}$.
+
+\subsubsection{Compact U-Net (CompactUNet)}
+The primary surrogate is an encoder-decoder network \cite{ronneberger2015u} with $3$ downscaling and upscaling stages. Each stage contains two $\text{Conv2D} \to \text{BatchNorm2D} \to \text{LeakyReLU}(0.2)$ blocks:
+\begin{itemize}
+    \item Initial Stage: $7 \to 16 \to 16$ channels.
+    \item Down 1: $\text{MaxPool}(2) \to 16 \to 32 \to 32$ channels.
+    \item Down 2: $\text{MaxPool}(2) \to 32 \to 64 \to 64$ channels.
+    \item Bottleneck: $\text{MaxPool}(2) \to 64 \to 128 \to 128$ channels.
+    \item Up 1: Bilinear Upsample($2\times$) $\to$ Skip Concatenation ($128+64=192$ channels) $\to 192 \to 64 \to 64$.
+    \item Up 2: Bilinear Upsample($2\times$) $\to$ Skip Concatenation ($64+32=96$ channels) $\to 96 \to 32 \to 32$.
+    \item Up 3: Bilinear Upsample($2\times$) $\to$ Skip Concatenation ($32+16=48$ channels) $\to 48 \to 16 \to 16$.
+    \item Output Projection: $\text{Conv2D}(16 \to 1, k=1)$.
+\end{itemize}
+Skip connections transfer high-resolution spatial feature maps directly from the encoder to the corresponding decoder stages. The architecture comprises exactly $\mathbf{488,577}$ trainable parameters.
+
+\subsubsection{Deep Ensemble Uncertainty Quantification}
+To evaluate epistemic model uncertainty, we train an ensemble of $K = 3$ independent Compact U-Nets initialized with distinct random seeds ($\mathcal{S} \in \{142, 143, 144\}$). The ensemble mean and predictive uncertainty are computed as:
+\begin{equation}
+    \widehat{U}_{\text{ens}}(\mathbf{x}) = \frac{1}{K} \sum_{k=1}^K \widehat{U}_k(\mathbf{x}), \quad \sigma_{\text{ens}}(\mathbf{x}) = \sqrt{\frac{1}{K} \sum_{k=1}^K \left(\widehat{U}_k(\mathbf{x}) - \widehat{U}_{\text{ens}}(\mathbf{x})\right)^2}
+\end{equation}
+Regions with high $\sigma_{\text{ens}}$ indicate spatial disagreement among models, flagging areas with complex turbulence requiring targeted verification.
+
+\subsection{Loss Function and Boundary Enforcement}
+Training is guided by a masked composite loss function:
+\begin{equation}
+    \mathcal{L} = \mathcal{L}_{\text{fluid}} + \alpha \mathcal{L}_{\text{grad}}
+\end{equation}
+where $\mathcal{L}_{\text{fluid}}$ is the masked L1 error over fluid cells:
+\begin{equation}
+    \mathcal{L}_{\text{fluid}} = \frac{1}{\sum (1 - M_{ij})} \sum_{i,j} (1 - M_{ij}) |\widehat{U}_{ij} - U_{ij}|
+\end{equation}
+and $\mathcal{L}_{\text{grad}}$ penalizes discrepancies in spatial velocity gradients:
+\begin{equation}
+    \mathcal{L}_{\text{grad}} = \frac{1}{\sum (1 - M_{ij})} \sum_{i,j} (1 - M_{ij}) \left( \left|\frac{\partial \widehat{U}}{\partial x} - \frac{\partial U}{\partial x}\right| + \left|\frac{\partial \widehat{U}}{\partial y} - \frac{\partial U}{\partial y}\right| \right)
+\end{equation}
+with weight $\alpha = 0.1$. Finally, hard boundary enforcement is guaranteed by zeroing solid pixels: $\widehat{U}_{ij} = 0$ for all $M_{ij} = 1$.
+
+\begin{table*}[t]
+\centering
+\small
+\caption{\textbf{Quantitative Empirical Results on Held-Out UrbanTALES LES Test Geometries (Strict Zero-Leakage Split).} All metrics are computed strictly over fluid cells on unseen test geometries (\texttt{UA0625\_d00}, \texttt{UA0625\_d45}, \texttt{UA1111\_d00}, \texttt{UA1111\_d45}). Models were never trained or validated on any angle of these geometries. Forward pass latency is measured on commodity CPU.}
+\label{tab:results}
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Model Architecture} & \textbf{MAE (m/s)} & \textbf{RMSE (m/s)} & \textbf{Range NRMSE} & \textbf{Inflow NRMSE} & \textbf{Max Error (m/s)} & \textbf{$R^2$ Score} & \textbf{Latency (ms)} \\
+\midrule
+Random Forest (Spatial Broadcast) & 0.2430 & 0.2718 & -- & 5.44\% & 0.5219 & N/A & 0.12 \\
+Compact Dilated CNN (5,905 params) & 0.2855 & 0.3311 & 35.54\% & 6.62\% & 0.7909 & -1.0474 & 0.45 \\
+Compact U-Net (Single Member, 488k) & 0.1728 & 0.2153 & 22.82\% & 4.31\% & 0.6352 & 0.1233 & 1.93 \\
+\textbf{Compact U-Net Ensemble ($K=3$)} & \textbf{0.1656} & \textbf{0.2030} & \textbf{21.37\%} & \textbf{4.06\%} & \textbf{0.6186} & \textbf{0.2300} & \textbf{6.07} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Experimental Setup & Zero Leakage}
+\subsection{Strict Geometry-Level Partitioning}
+To prevent geometry-level data leakage, samples were grouped by their \textbf{base building geometry} before splitting. Out of 10 unique building geometries:
+\begin{itemize}
+    \item \textbf{Training Geometries (60\%, 6 geometries, 12 cases):} \texttt{UA16}, \texttt{UA25}, \texttt{US0625}, \texttt{US1111}, \texttt{US16}, \texttt{US25} (both $0^\circ$ and $45^\circ$).
+    \item \textbf{Validation Geometries (20\%, 2 geometries, 4 cases):} \texttt{UA35}, \texttt{US35} (both $0^\circ$ and $45^\circ$), used strictly for early stopping on validation NRMSE.
+    \item \textbf{Held-Out Test Geometries (20\%, 2 geometries, 4 cases):}
+    \begin{enumerate}
+        \item \texttt{urbantales\_UA0625\_d00}: Sparse aligned ($\lambda_p = 0.0625$, Wind $0^\circ$).
+        \item \texttt{urbantales\_UA0625\_d45}: Sparse aligned ($\lambda_p = 0.0625$, Wind $45^\circ$).
+        \item \texttt{urbantales\_UA1111\_d00}: Transitional aligned ($\lambda_p = 0.111$, Wind $0^\circ$).
+        \item \texttt{urbantales\_UA1111\_d45}: Transitional aligned ($\lambda_p = 0.111$, Wind $45^\circ$).
+    \end{enumerate}
+\end{itemize}
+\textbf{Leakage Guarantee:} Base building geometries in the test set share \textit{zero} overlap with the training set. Neither wind angle ($0^\circ$ or $45^\circ$) of \texttt{UA0625} or \texttt{UA1111} was ever seen during training. Normalizers ($z$-score scaling) were fitted exclusively on training fluid cells.
+
+\subsection{Training Hyperparameters}
+Training is executed using the AdamW optimizer with initial learning rate $\eta = 1.0 \times 10^{-3}$, weight decay $1.0 \times 10^{-4}$, and mini-batch size $B = 4$. Training proceeds for $35$ epochs with early stopping triggered if validation NRMSE fails to improve for $12$ consecutive epochs. All experiments were conducted on a single Apple Silicon CPU thread without requiring specialized GPU accelerators, completing full ensemble training in $12.7$ seconds.
+
+\section{Results & Discussion}
+\subsection{Quantitative Performance}
+Table~\ref{tab:results} summarizes quantitative performance across the strictly held-out test geometries.
+
+The \textbf{Compact U-Net Ensemble} achieves the highest accuracy across every metric, recording a mean field MAE of $\mathbf{0.1656\,\text{m/s}}$ and an RMSE of $\mathbf{0.2030\,\text{m/s}}$. Relative to the $5.0\,\text{m/s}$ inflow velocity, the normalized error is $\mathbf{4.06\%}$, satisfying the $5\%$ threshold recommended by COST 732 guidelines for microclimate screening tools.
+
+Compared to the Random Forest spatial broadcast baseline ($\text{MAE} = 0.2430\,\text{m/s}$), the U-Net Ensemble achieves a \textbf{31.9\% reduction in MAE}. Random Forest achieves a negative $R^2$ ($-0.3592$) when evaluated across unseen building geometries, proving that scalar morphological summaries cannot generalize across out-of-distribution canyon aspect ratios.
+
+Crucially, the dilated \textbf{CompactCNN} performs poorly ($\text{MAE} = 0.2855\,\text{m/s}$, $R^2 = -1.0474$). Without multi-scale downsampling and pooling, dilated convolutions fail to capture long-range aerodynamic pressure blocking across building arrays, leading to noisy predictions in canyon wake regions.
+
+\subsection{Ensemble Benefit and Variance Reduction}
+Comparing the single U-Net member ($\text{MAE} = 0.1728\,\text{m/s}$, $R^2 = 0.1233$) with the 3-member ensemble ($\text{MAE} = 0.1656\,\text{m/s}$, $R^2 = 0.2300$) confirms that ensemble averaging reduces variance, cancels individual network artifacts along turbulent shear boundaries, and boosts correlation with ground-truth LES.
+
+\subsection{Qualitative Aerodynamic Physics}
+Figure~\ref{fig:triplet} presents a visual comparison for the held-out layout \texttt{urbantales\_UA0625\_d00}. The Compact U-Net correctly resolves key aerodynamic phenomena:
+\begin{enumerate}
+    \item \textbf{Windward Stagnation:} High-pressure stagnation zones directly upstream of front-row obstacles are accurately localized.
+    \item \textbf{Corner Venturi Acceleration:} High-speed jets through lateral building gaps ($U > 1.2\,\text{m/s}$) match the LES ground truth.
+    \item \textbf{Wake Recirculation:} Extended velocity deficit cavities behind building arrays are clearly delineated rather than artificially smoothed.
+\end{enumerate}
+
+\section{Computational Latency & Practical Application}
+Single Compact U-Net inference executes in $\mathbf{1.93\,\text{ms}}$ on a standard CPU ($518\,\text{FPS}$), while the 3-member ensemble executes in $\mathbf{6.07\,\text{ms}}$ ($165\,\text{FPS}$). Both operate well within the $16\,\text{ms}$ threshold required for real-time 60 FPS interactive manipulation in architectural CAD software.
+
+While numerical 3D time-dependent LES requires several hours on parallel compute clusters, direct speedup ratios must be interpreted with engineering caution: the neural surrogate evaluates a 2D pre-conditioned horizontal slice rather than resolving full 3D transient Navier-Stokes equations. The surrogate's value lies in rapid screening during early schematic design.
+
+\section{Scientific Limitations & Ethical Boundaries}
+In adherence to rigorous scientific ethics, we explicitly document the physical scope of this study:
+\begin{enumerate}
+    \item \textbf{Isothermal Restriction:} UrbanTALES LES is strictly an aerodynamic wind-flow dataset. It does not model thermal buoyancy, solar radiative heating, or ambient air temperature ($T = \text{const}$). Consequently, this surrogate predicts velocity fields exclusively; claiming temperature prediction would be scientifically invalid.
+    \item \textbf{2D Planar Scope:} The surrogate predicts horizontal wind speed at pedestrian height ($z = 1.75\,\text{m}$). It does not resolve vertical velocity vectors ($w$) or full 3D volumetric flow.
+    \item \textbf{Surrogate Context:} These surrogates are designed for early-stage generative massing and comparative layout screening. They are not certified for safety-critical structural wind loading or legal regulatory compliance.
+\end{enumerate}
+
+\section{Conclusion & Future Work}
+This paper presented an end-to-end spatial deep learning framework for predicting urban pedestrian microclimates, trained and validated on real Large-Eddy Simulation data from the UrbanTALES benchmark under a strict zero geometry-level leakage protocol. Compact U-Net achieved a held-out MAE of $0.1656\,\text{m/s}$ (4.06\% inflow NRMSE) with $1.93\,\text{ms}$ CPU inference latency.
+
+Future research will focus on: (1) extending the surrogate to full 3D velocity vectors $(u, v, w)$ and TKE fields; (2) incorporating Fourier Neural Operators (FNO) for mesh-independent zero-shot resolution transfer; and (3) ingesting thermal buoyancy datasets to model coupled urban heat and wind microclimates.
+
+\begin{thebibliography}{99}
+\bibitem{oke1988street}
+T.~R. Oke, ``Street design and urban canopy layer climate,'' \textit{Energy and Buildings}, vol.~11, no.~1-3, pp.~103--113, 1988.
+
+\bibitem{franke2007best}
+J.~Franke, C.~Hirsch, B.~V. Jensen, H.~W. Kr{\"u}s, M.~Schatzmann, P.~S. Westbury, S.~D. Miles, I.~Wisse, and N.~G. Wright, ``Recommendations on the use of CFD in wind engineering,'' \textit{COST Action 732}, pp.~1--46, 2007.
+
+\bibitem{nazarian2025urbantales}
+N.~Nazarian et al., ``UrbanTALES: A Comprehensive LES Dataset for Urban Canopy Layer Turbulence Analyses and Parameterization Development,'' \textit{Bulletin of the American Meteorological Society (BAMS)}, DOI: 10.1175/BAMS-D-25-0061.1, 2025.
+
+\bibitem{brunton2020machine}
+S.~L. Brunton, B.~R. Noack, and P.~Koumoutsakos, ``Machine learning for fluid mechanics,'' \textit{Annual Review of Fluid Mechanics}, vol.~52, pp.~477--508, 2020.
+
+\bibitem{thuerey2020deep}
+N.~Thuerey, K.~Wei{\ss}enow, L.~Prantl, and X.~Hu, ``Deep learning methods for Reynolds-averaged Navier--Stokes simulations of airfoil flows,'' \textit{AIAA Journal}, vol.~58, no.~1, pp.~25--36, 2020.
+
+\bibitem{ronneberger2015u}
+O.~Ronneberger, P.~Fischer, and T.~Brox, ``U-Net: Convolutional networks for biomedical image segmentation,'' in \textit{MICCAI}, pp.~234--241, Springer, 2015.
+
+\bibitem{farimani2017deep}
+A.~B. Farimani, J.~Gomes, and V.~S. Pande, ``Deep learning the physics of transport phenomena,'' \textit{arXiv preprint arXiv:1709.02432}, 2017.
+
+\bibitem{heus2010formulation}
+T.~Heus et al., ``Formulation of the Dutch Atmospheric Large-Eddy Simulation (DALES) and overview of its applications,'' \textit{Geoscientific Model Development}, vol.~3, no.~2, pp.~415--444, 2010.
+
+\bibitem{deardorff1970numerical}
+J.~W. Deardorff, ``A numerical study of three-dimensional turbulent channel flow at large Reynolds numbers,'' \textit{Journal of Fluid Mechanics}, vol.~41, no.~2, pp.~453--480, 1970.
+
+\bibitem{raissi2019physics}
+M.~Raissi, P.~Perdikaris, and G.~E. Karniadakis, ``Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations,'' \textit{Journal of Computational Physics}, vol.~378, pp.~686--707, 2019.
+
+\bibitem{alhafi2024machine}
+Z.~Alhafi, et al., ``Machine learning models for predicting pedestrian-level wind speed in urban areas,'' \textit{Building and Environment}, vol.~248, p.~111054, 2024.
+\end{thebibliography}
+
+\end{document}

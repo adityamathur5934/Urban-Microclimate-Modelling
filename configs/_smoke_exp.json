@@ -1,0 +1,234 @@
+{
+  "config": {
+    "seed": 42,
+    "n_layouts": 6,
+    "grid_shape": [
+      32,
+      32
+    ],
+    "domain_size_m": [
+      128.0,
+      128.0,
+      60.0
+    ],
+    "train_ratio": 0.66,
+    "val_ratio": 0.17,
+    "test_ratio": 0.17,
+    "epochs": 2,
+    "batch_size": 2,
+    "learning_rate": 0.001,
+    "unet_base_channels": 16,
+    "unet_depth": 3,
+    "cnn_hidden_channels": 16,
+    "cnn_num_layers": 4,
+    "ensemble_size": 2,
+    "patience": 3,
+    "device": "cpu",
+    "checkpoint_dir": "checkpoints/_smoke_exp",
+    "output_dir": "outputs/_smoke_exp",
+    "manifest_path": "configs/_smoke_exp.json",
+    "generate_figures": true
+  },
+  "split": {
+    "train_layout_ids": [
+      "ref_aligned_03",
+      "ref_single_02",
+      "ref_single_05",
+      "ref_staggered_01"
+    ],
+    "val_layout_ids": [
+      "ref_aligned_00"
+    ],
+    "test_layout_ids": [
+      "ref_staggered_04"
+    ],
+    "metadata": {
+      "split_strategy": "ratio",
+      "seed": 42,
+      "train_ratio": 0.66,
+      "val_ratio": 0.17,
+      "test_ratio": 0.17,
+      "created_at": "2026-11-01T14:33:01.575737+00:00"
+    }
+  },
+  "models": {
+    "random_forest": {
+      "checkpoint": "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/_smoke_exp/rf_baseline.joblib",
+      "is_fitted": true,
+      "feature_dim": 26
+    },
+    "cnn": {
+      "checkpoint": "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/_smoke_exp/compactcnn_seed242/best_checkpoint.pt",
+      "is_trained": true,
+      "params": 5905
+    },
+    "unet_ensemble": {
+      "size": 2,
+      "checkpoints": [
+        "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/_smoke_exp/compactunet_seed142/best_checkpoint.pt",
+        "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/_smoke_exp/compactunet_seed143/best_checkpoint.pt"
+      ],
+      "is_trained": true,
+      "seeds": [
+        142,
+        143
+      ]
+    }
+  },
+  "metrics": {
+    "random_forest": {
+      "scalar": {
+        "mae": 0.011229515075683594,
+        "rmse": 0.011229515035187869,
+        "r2": 0.0,
+        "nrmse_range": 0.0,
+        "nrmse_mean": 0.3348711562258458,
+        "max_error": 0.011229515075683594,
+        "num_samples": 1
+      },
+      "broadcast_spatial": {
+        "per_layout": [
+          {
+            "layout_id": "ref_staggered_04",
+            "scalar_pred_mps": 3.3422,
+            "mae_mps": 0.4384055454962649,
+            "rmse_mps": 0.6892890254909452,
+            "nrmse_inflow_percent": 13.785780509818904,
+            "max_error_mps": 2.624976634979248
+          }
+        ],
+        "aggregate": {
+          "mean_mae_mps": 0.43841,
+          "mean_rmse_mps": 0.68929,
+          "mean_nrmse_range_percent": null,
+          "mean_nrmse_inflow_percent": 13.78578,
+          "mean_max_error_mps": 2.62498,
+          "mean_r2_score": null,
+          "mean_inference_ms": null
+        }
+      }
+    },
+    "unet_ensemble_mean": {
+      "per_layout": [
+        {
+          "layout_id": "ref_staggered_04",
+          "mae_mps": 0.60498366339004,
+          "rmse_mps": 0.8439492877472092,
+          "nrmse_range_percent": 18.673062782135847,
+          "nrmse_inflow_percent": 16.878985754944186,
+          "max_error_mps": 3.118306875228882,
+          "r2_score": -0.499495778983698,
+          "inference_ms": 2.97,
+          "u_ref_mps": 5.0
+        }
+      ],
+      "aggregate": {
+        "mean_mae_mps": 0.60498,
+        "mean_rmse_mps": 0.84395,
+        "mean_nrmse_range_percent": 18.67306,
+        "mean_nrmse_inflow_percent": 16.87899,
+        "mean_max_error_mps": 3.11831,
+        "mean_r2_score": -0.4995,
+        "mean_inference_ms": 2.97
+      }
+    },
+    "unet_member0": {
+      "per_layout": [
+        {
+          "layout_id": "ref_staggered_04",
+          "mae_mps": 0.6590258229357994,
+          "rmse_mps": 0.8877189406394986,
+          "nrmse_range_percent": 19.641501867607094,
+          "nrmse_inflow_percent": 17.754378812789973,
+          "max_error_mps": 3.185236692428589,
+          "r2_score": -0.6590654453355669,
+          "inference_ms": 1.287,
+          "u_ref_mps": 5.0
+        }
+      ],
+      "aggregate": {
+        "mean_mae_mps": 0.65903,
+        "mean_rmse_mps": 0.88772,
+        "mean_nrmse_range_percent": 19.6415,
+        "mean_nrmse_inflow_percent": 17.75438,
+        "mean_max_error_mps": 3.18524,
+        "mean_r2_score": -0.65907,
+        "mean_inference_ms": 1.287
+      }
+    },
+    "cnn": {
+      "per_layout": [
+        {
+          "layout_id": "ref_staggered_04",
+          "mae_mps": 0.6076714484556484,
+          "rmse_mps": 0.8448155871655046,
+          "nrmse_range_percent": 18.692230359691532,
+          "nrmse_inflow_percent": 16.896311743310093,
+          "max_error_mps": 3.1214866638183594,
+          "r2_score": -0.5025757721700994,
+          "inference_ms": 0.226,
+          "u_ref_mps": 5.0
+        }
+      ],
+      "aggregate": {
+        "mean_mae_mps": 0.60767,
+        "mean_rmse_mps": 0.84482,
+        "mean_nrmse_range_percent": 18.69223,
+        "mean_nrmse_inflow_percent": 16.89631,
+        "mean_max_error_mps": 3.12149,
+        "mean_r2_score": -0.50258,
+        "mean_inference_ms": 0.226
+      }
+    },
+    "uncertainty": {
+      "per_layout": [
+        {
+          "layout_id": "ref_staggered_04",
+          "mean_pixel_std_mps": 0.07222,
+          "max_pixel_std_mps": 0.09049,
+          "p95_pixel_std_mps": 0.08208
+        }
+      ],
+      "method": "ensemble_predictive_disagreement (U-Net std, NOT calibrated)"
+    }
+  },
+  "uncertainty": {
+    "per_layout": [
+      {
+        "layout_id": "ref_staggered_04",
+        "mean_pixel_std_mps": 0.07222,
+        "max_pixel_std_mps": 0.09049,
+        "p95_pixel_std_mps": 0.08208
+      }
+    ],
+    "method": "ensemble_predictive_disagreement (U-Net std, NOT calibrated)"
+  },
+  "artifacts": {
+    "checkpoint_dir": "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/_smoke_exp",
+    "output_dir": "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/_smoke_exp",
+    "figures": [
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/_smoke_exp/training_curves_unet_member0.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/_smoke_exp/training_curves_unet_member1.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/_smoke_exp/training_curves_cnn.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/_smoke_exp/triplet_unet_ensemble_mean_ref_staggered_04.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/_smoke_exp/triplet_unet_member0_ref_staggered_04.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/_smoke_exp/triplet_cnn_ref_staggered_04.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/_smoke_exp/triplet_rf_broadcast_ref_staggered_04.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/_smoke_exp/scatter_rf_area_averaged.png",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/outputs/_smoke_exp/uncertainty_ref_staggered_04.png"
+    ],
+    "checkpoints": [
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/_smoke_exp/rf_baseline.joblib",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/_smoke_exp/compactunet_seed142/best_checkpoint.pt",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/_smoke_exp/compactunet_seed143/best_checkpoint.pt",
+      "/Users/aditya.2024/Documents/Projects/Urban Microclimate Modelling/checkpoints/_smoke_exp/compactcnn_seed242/best_checkpoint.pt"
+    ],
+    "normalizer_fitted_layout_ids": [
+      "ref_aligned_03",
+      "ref_single_02",
+      "ref_single_05",
+      "ref_staggered_01"
+    ]
+  },
+  "provenance": "ANALYTICAL_REFERENCE"
+}

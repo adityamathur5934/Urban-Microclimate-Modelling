@@ -1,0 +1,202 @@
+[
+  {
+    "folder_name": "UA0625_d00",
+    "config": "idealized-uniform_d00",
+    "layout_type": "Aligned",
+    "wind_direction_deg": 0.0,
+    "plan_area_density": 0.0625,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/UA0625_d00_ped.nc",
+    "topo_file": "data/urbantales/UA0625_d00_topo"
+  },
+  {
+    "folder_name": "UA0625_d45",
+    "config": "idealized-uniform_d45",
+    "layout_type": "Aligned",
+    "wind_direction_deg": 45.0,
+    "plan_area_density": 0.0625,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/UA0625_d45_ped.nc",
+    "topo_file": "data/urbantales/UA0625_d45_topo"
+  },
+  {
+    "folder_name": "UA1111_d00",
+    "config": "idealized-uniform_d00",
+    "layout_type": "Aligned",
+    "wind_direction_deg": 0.0,
+    "plan_area_density": 0.111111111,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/UA1111_d00_ped.nc",
+    "topo_file": "data/urbantales/UA1111_d00_topo"
+  },
+  {
+    "folder_name": "UA1111_d45",
+    "config": "idealized-uniform_d45",
+    "layout_type": "Aligned",
+    "wind_direction_deg": 45.0,
+    "plan_area_density": 0.111111111,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/UA1111_d45_ped.nc",
+    "topo_file": "data/urbantales/UA1111_d45_topo"
+  },
+  {
+    "folder_name": "UA16_d00",
+    "config": "idealized-uniform_d00",
+    "layout_type": "Aligned",
+    "wind_direction_deg": 0.0,
+    "plan_area_density": 0.16,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/UA16_d00_ped.nc",
+    "topo_file": "data/urbantales/UA16_d00_topo"
+  },
+  {
+    "folder_name": "UA16_d45",
+    "config": "idealized-uniform_d45",
+    "layout_type": "Aligned",
+    "wind_direction_deg": 45.0,
+    "plan_area_density": 0.16,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/UA16_d45_ped.nc",
+    "topo_file": "data/urbantales/UA16_d45_topo"
+  },
+  {
+    "folder_name": "UA25_d00",
+    "config": "idealized-uniform_d00",
+    "layout_type": "Aligned",
+    "wind_direction_deg": 0.0,
+    "plan_area_density": 0.25,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/UA25_d00_ped.nc",
+    "topo_file": "data/urbantales/UA25_d00_topo"
+  },
+  {
+    "folder_name": "UA25_d45",
+    "config": "idealized-uniform_d45",
+    "layout_type": "Aligned",
+    "wind_direction_deg": 45.0,
+    "plan_area_density": 0.25,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/UA25_d45_ped.nc",
+    "topo_file": "data/urbantales/UA25_d45_topo"
+  },
+  {
+    "folder_name": "UA35_d00",
+    "config": "idealized-uniform_d00",
+    "layout_type": "Aligned",
+    "wind_direction_deg": 0.0,
+    "plan_area_density": 0.351165981,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/UA35_d00_ped.nc",
+    "topo_file": "data/urbantales/UA35_d00_topo"
+  },
+  {
+    "folder_name": "UA35_d45",
+    "config": "idealized-uniform_d45",
+    "layout_type": "Aligned",
+    "wind_direction_deg": 45.0,
+    "plan_area_density": 0.351165981,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/UA35_d45_ped.nc",
+    "topo_file": "data/urbantales/UA35_d45_topo"
+  },
+  {
+    "folder_name": "US0625_d00",
+    "config": "idealized-uniform_d00",
+    "layout_type": "Staggered",
+    "wind_direction_deg": 0.0,
+    "plan_area_density": 0.0625,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/US0625_d00_ped.nc",
+    "topo_file": "data/urbantales/US0625_d00_topo"
+  },
+  {
+    "folder_name": "US0625_d45",
+    "config": "idealized-uniform_d45",
+    "layout_type": "Staggered",
+    "wind_direction_deg": 45.0,
+    "plan_area_density": 0.0625,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/US0625_d45_ped.nc",
+    "topo_file": "data/urbantales/US0625_d45_topo"
+  },
+  {
+    "folder_name": "US1111_d00",
+    "config": "idealized-uniform_d00",
+    "layout_type": "Staggered",
+    "wind_direction_deg": 0.0,
+    "plan_area_density": 0.111111111,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/US1111_d00_ped.nc",
+    "topo_file": "data/urbantales/US1111_d00_topo"
+  },
+  {
+    "folder_name": "US1111_d45",
+    "config": "idealized-uniform_d45",
+    "layout_type": "Staggered",
+    "wind_direction_deg": 45.0,
+    "plan_area_density": 0.111111111,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/US1111_d45_ped.nc",
+    "topo_file": "data/urbantales/US1111_d45_topo"
+  },
+  {
+    "folder_name": "US16_d00",
+    "config": "idealized-uniform_d00",
+    "layout_type": "Staggered",
+    "wind_direction_deg": 0.0,
+    "plan_area_density": 0.16,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/US16_d00_ped.nc",
+    "topo_file": "data/urbantales/US16_d00_topo"
+  },
+  {
+    "folder_name": "US16_d45",
+    "config": "idealized-uniform_d45",
+    "layout_type": "Staggered",
+    "wind_direction_deg": 45.0,
+    "plan_area_density": 0.16,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/US16_d45_ped.nc",
+    "topo_file": "data/urbantales/US16_d45_topo"
+  },
+  {
+    "folder_name": "US25_d00",
+    "config": "idealized-uniform_d00",
+    "layout_type": "Staggered",
+    "wind_direction_deg": 0.0,
+    "plan_area_density": 0.25,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/US25_d00_ped.nc",
+    "topo_file": "data/urbantales/US25_d00_topo"
+  },
+  {
+    "folder_name": "US25_d45",
+    "config": "idealized-uniform_d45",
+    "layout_type": "Staggered",
+    "wind_direction_deg": 45.0,
+    "plan_area_density": 0.25,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/US25_d45_ped.nc",
+    "topo_file": "data/urbantales/US25_d45_topo"
+  },
+  {
+    "folder_name": "US35_d00",
+    "config": "idealized-uniform_d00",
+    "layout_type": "Staggered",
+    "wind_direction_deg": 0.0,
+    "plan_area_density": 0.351165981,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/US35_d00_ped.nc",
+    "topo_file": "data/urbantales/US35_d00_topo"
+  },
+  {
+    "folder_name": "US35_d45",
+    "config": "idealized-uniform_d45",
+    "layout_type": "Staggered",
+    "wind_direction_deg": 45.0,
+    "plan_area_density": 0.351165981,
+    "building_height_m": 16.0,
+    "ped_file": "data/urbantales/US35_d45_ped.nc",
+    "topo_file": "data/urbantales/US35_d45_topo"
+  }
+]

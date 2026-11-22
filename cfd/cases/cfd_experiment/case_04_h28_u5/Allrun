@@ -1,0 +1,13 @@
+#!/bin/bash
+# Reproducible runner for a generated CFD experiment case.
+# Requires OpenFOAM (v2312/10/11) on PATH or sourced, OR an OpenFOAM container.
+set -e
+if ! command -v blockMesh >/dev/null 2>&1 || ! command -v simpleFoam >/dev/null 2>&1; then
+    echo "ERROR: OpenFOAM not available (blockMesh/simpleFoam not on PATH)."
+    echo "Source your OpenFOAM etc/bashrc, or run inside an OpenFOAM docker image, then re-run."
+    exit 1
+fi
+echo "[1/3] blockMesh"; blockMesh > log.blockMesh 2>&1
+echo "[2/3] checkMesh"; checkMesh > log.checkMesh 2>&1
+echo "[3/3] simpleFoam"; simpleFoam > log.simpleFoam 2>&1
+echo "Done. Inspect log.simpleFoam for residuals and convergence."

@@ -1,0 +1,58 @@
+/*--------------------------------*- OpenFOAM -*-----------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2312 / 10 / 11                       |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    location    "0";
+    object      omega;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 0 -1 0 0 0 0];
+// Specific dissipation rate at zref: omega = 0.3127 s-1
+internalField   uniform 0.3127;
+
+boundaryField
+{
+    inlet
+    {
+        type            atmBoundaryLayerInletOmega;
+        Uref            5.00;
+        Zref            10.00;
+        z0              uniform 0.0500;
+        d               uniform 0.0;
+        value           uniform 0.3127;
+    }
+    outlet
+    {
+        type            inletOutlet;
+        inletValue      uniform 0.3127;
+        value           uniform 0.3127;
+    }
+    ground
+    {
+        type            omegaWallFunction;
+        value           uniform 0.3127;
+    }
+    building
+    {
+        type            omegaWallFunction;
+        value           uniform 0.3127;
+    }
+    top
+    {
+        type            slip;
+    }
+    frontAndBack
+    {
+        type            empty;
+    }
+}
+// ************************************************************************* //
